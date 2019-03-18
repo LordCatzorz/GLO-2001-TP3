@@ -153,7 +153,7 @@ int main(int argc, char **argv) {
 			return 1;
 		}
 		RetVal =  bd_write(argv[2],argv[3],atoi(argv[4]),strlen(argv[3]));
-	}  ========== commande bd_chmod() ============= 
+	} //  ========== commande bd_chmod() ============= 
 	else if (strcmp(argv[1],"chmod")==0) {
 		if (argc!=4) { 
 			printf("La commande chmod demande 2 arguments!\n");
