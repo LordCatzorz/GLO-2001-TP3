@@ -4,6 +4,8 @@
 #include <string.h>
 #include "disque.h"
 
+#define BASE_BLOCK_DATA (BASE_BLOCK_INODE + (N_INODE_ON_DISK / NUM_INODE_PER_BLOCK)) // Le numéro de block du premier block de données.
+
 // Quelques fonctions qui pourraient vous être utiles
 int NumberofDirEntry(int Size) {
 	return Size/sizeof(DirEntry);
@@ -96,10 +98,15 @@ void printiNode(iNodeEntry iNode) {
 	C'est votre partie, bon succès!
 	3e6a98197487be5b26d0e4ec2051411f
    ---------------------------------------------------------------------------------------- */
-					 
 
 int bd_countusedblocks(void) {
-	return 0;
+	int usedblock = 0;
+	char bitmapFreeBlock[BLOCK_SIZE];
+	for(UINT16 i = BASE_BLOCK_DATA; i < N_BLOCK_ON_DISK; i++)
+	{
+		usedblock += bitmapFreeBlock[i] == 0 ? 0: 1;
+	}
+	return usedblock;
 }
 
 int bd_stat(const char *pFilename, gstat *pStat) {
