@@ -4,8 +4,6 @@
 #include <string.h>
 #include "disque.h"
 
-#define BASE_BLOCK_DATA (BASE_BLOCK_INODE + (N_INODE_ON_DISK / NUM_INODE_PER_BLOCK)) // Le numéro de block du premier block de données.
-
 // Quelques fonctions qui pourraient vous être utiles
 int NumberofDirEntry(int Size) {
 	return Size/sizeof(DirEntry);
@@ -103,7 +101,7 @@ int bd_countusedblocks(void) {
 	int usedblock = 0;
 	char bitmapFreeBlock[BLOCK_SIZE];
 	ReadBlock(FREE_BLOCK_BITMAP, bitmapFreeBlock);
-	for(UINT16 i = BASE_BLOCK_DATA; i < N_BLOCK_ON_DISK; i++)
+	for(UINT16 i = 0; i < N_BLOCK_ON_DISK; i++)
 	{
 		usedblock += bitmapFreeBlock[i] == 0 ? 1 : 0;
 	}
