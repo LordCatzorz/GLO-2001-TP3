@@ -98,18 +98,29 @@ void printiNode(iNodeEntry iNode) {
    ---------------------------------------------------------------------------------------- */
 int obtentionNoInodeLibre()
 {
-	char BlockFreeBitmap[BLOCK_SIZE];
-	ReadBlock(FREE_INODE_BITMAP,BlockFreeBitmap);
+	char InodeFreeBitmap[BLOCK_SIZE];
+	ReadBlock(FREE_INODE_BITMAP,InodeFreeBitmap);
 	int compteur = 1;
 	while(compteur<32){
 		
-		if (BlockFreeBitmap[compteur]!=0)
+		if (InodeFreeBitmap[compteur]!=0)
 			return compteur;
 		compteur++;
 	}
 	return -1;
 	
-}			 
+}	
+
+int SaisieFreeInode(UINT16 InodeNum)
+{
+	char InodeFreeBitmap[BLOCK_SIZE];
+	ReadBlock(FREE_INODE_BITMAP,InodeFreeBitmap);
+	InodeFreeBitmap[InodeNum]=0;
+	printf("Saisie i-node %d \n",InodeNum);
+	WriteBlock(FREE_INODE_BITMAP,InodeFreeBitmap);
+	return 1;
+}
+		 
 // Renvoie le nombre de blocs utilise
 int bd_countusedblocks(void) {
 	char BlockFreeBitmap[BLOCK_SIZE];
@@ -224,8 +235,8 @@ int bd_create(const char *pFilename) {
 	}
 	if (estPresent!=-1) return -2;
 	
-	int noInodeLibre = obtentionNoInodeLibre();
-
+	UINT16 noInodeLibre = obtentionNoInodeLibre();
+	SaisieFreeInode(noInodeLibre);
 	return 0;
 }
 
