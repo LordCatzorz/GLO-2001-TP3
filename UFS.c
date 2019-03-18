@@ -99,7 +99,14 @@ void printiNode(iNodeEntry iNode) {
 					 
 
 int bd_countusedblocks(void) {
-	return 0;
+    char BlockFreeBitmap[BLOCK_SIZE];
+    ReadBlock(FREE_BLOCK_BITMAP,BlockFreeBitmap);
+    int compteurBlocNonLibre = 0;
+    for (int i=0;i<BLOCK_SIZE;i++){
+        if (BlockFreeBitmap[i]==0)
+            compteurBlocNonLibre++;
+    }
+    return compteurBlocNonLibre;
 }
 
 int bd_stat(const char *pFilename, gstat *pStat) {
