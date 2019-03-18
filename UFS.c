@@ -97,24 +97,123 @@ void printiNode(iNodeEntry iNode) {
 	3e6a98197487be5b26d0e4ec2051411f
    ---------------------------------------------------------------------------------------- */
 					 
-
+// Renvoie le nombre de blocs utilise
 int bd_countusedblocks(void) {
-    char BlockFreeBitmap[BLOCK_SIZE];
-    ReadBlock(FREE_BLOCK_BITMAP,BlockFreeBitmap);
-    int compteurBlocNonLibre = 0;
-    for (int i=0;i<BLOCK_SIZE;i++){
-        if (BlockFreeBitmap[i]==0)
-            compteurBlocNonLibre++;
-    }
-    return compteurBlocNonLibre;
+	char BlockFreeBitmap[BLOCK_SIZE];
+	ReadBlock(FREE_BLOCK_BITMAP,BlockFreeBitmap);
+	int compteurBlocNonLibre = 0;
+	for (int i=0;i<BLOCK_SIZE;i++){
+		if (BlockFreeBitmap[i]==0)
+			compteurBlocNonLibre++;
+	}
+	return compteurBlocNonLibre;
 }
 
 int bd_stat(const char *pFilename, gstat *pStat) {
-	return -1;
+	// Obtention de l'i-node de   la racine.
+	char InodesBlockEntry[BLOCK_SIZE];
+	ReadBlock(4,InodesBlockEntry);
+	iNodeEntry *pINE = (iNodeEntry *) InodesBlockEntry;
+	iNodeEntry pINodeEntry = pINE[1];
+	int debut = 0;
+	int i = 0;
+	int j = 0;
+	char maTab[50][200];
+	while(pFilename[i] != '\0')
+	{
+    		if(pFilename[i] == '/')
+    		{
+          		 strncpy(maTab[j],pFilename + debut,i-debut);//copie seulement i-debut octet à partir du debut ième caractère de fileName.
+          	 	j++;
+          		debut = i+1;
+    		}
+
+   		 i++;
+	}
+	strncpy(maTab[j],pFilename + debut,i-debut);
+          	 	j++;
+	for (i=1;i<j;i++)
+	{
+		int estPresent =-1;
+		for (int k=0;k<N_BLOCK_PER_INODE;k++) 
+		{
+			char DataBlockDirEntry[BLOCK_SIZE];
+			ReadBlock(pINodeEntry.Block[k],DataBlockDirEntry);
+			DirEntry *pDE = (DirEntry *) DataBlockDirEntry;
+			for (int l=0;l<(BLOCK_SIZE)/sizeof(DirEntry);l++)
+			{	
+				if (strcmp(maTab[i],pDE[l].Filename)==0)
+				{
+					estPresent=i;
+					ReadBlock(4+(pDE[l].iNode/8),InodesBlockEntry);
+					iNodeEntry *pINE = (iNodeEntry *) InodesBlockEntry;
+					pINodeEntry = pINE[pDE[l].iNode%8];
+					break;
+				}
+			}
+			if (estPresent!=-1) break;
+		}
+		if (estPresent==-1) return -1;
+	}
+
+	*pStat=pINodeEntry.iNodeStat;
+
+	return 0;
 }
 
 int bd_create(const char *pFilename) {
-	return -1;
+	// Obtention de l'i-node de   la racine.
+	char InodesBlockEntry[BLOCK_SIZE];
+	ReadBlock(4,InodesBlockEntry);
+	iNodeEntry *pINE = (iNodeEntry *) InodesBlockEntry;
+	iNodeEntry pINodeEntry = pINE[0];
+
+	int debut = 0;
+	int i = 0;
+	int j = 0;
+	char maTab[50][200];
+	while(pFilename[i] != '\0')
+	{
+    		if(pFilename[i] == '/')
+    		{
+          		 strncpy(maTab[j],pFilename + debut,i-debut);//copie seulement i-debut octet à partir du debut ième caractère de fileName.
+          	 	j++;
+          		debut = i+1;
+    		}
+
+   		 i++;
+	}
+
+	for (i=1;i<j;i++)
+	{
+		int estPresent =-1;
+		for (int k=0;k<N_BLOCK_PER_INODE;k++) 
+		{
+			printf("||| %s ||| \n",maTab[i]);
+			char DataBlockDirEntry[BLOCK_SIZE];
+			ReadBlock(pINodeEntry.Block[k],DataBlockDirEntry);
+			DirEntry *pDE = (DirEntry *) DataBlockDirEntry;
+			for (int l=0;l<(BLOCK_SIZE)/sizeof(DirEntry);l++)
+			{	
+				// J'affiche les   noms des fichiers des bloccccc eeeennnnnttttry
+				printf("||| %s ||| \n",pDE[l].Filename);
+				if (strcmp(maTab[i],pDE[l].Filename)==0)
+				{
+					estPresent=i;
+					ReadBlock(4+(pDE[l].iNode/8),InodesBlockEntry);
+					iNodeEntry *pINE = (iNodeEntry *) InodesBlockEntry;
+					pINodeEntry = pINE[pDE[l].iNode%8];
+					break;
+				}
+			}
+			if (estPresent!=-1) break;
+		}
+		if (estPresent==-1) return -1;
+	}
+	
+	
+
+	return 0;
 }
 
 int bd_read(const char *pFilename, char *buffer, int offset, int numbytes) {
@@ -164,3 +263,5 @@ int bd_chmod(const char *pFilename, UINT16 st_mode) {
 int bd_fct_perso(){ //ajuster aussi les paramètres
 	return -1;
 }
+
+
