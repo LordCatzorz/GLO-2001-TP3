@@ -105,7 +105,7 @@ int bd_countusedblocks(void) {
 	ReadBlock(FREE_BLOCK_BITMAP, bitmapFreeBlock);
 	for(UINT16 i = BASE_BLOCK_DATA; i < N_BLOCK_ON_DISK; i++)
 	{
-		usedblock += bitmapFreeBlock[i] == 0 ? 0 : 1;
+		usedblock += bitmapFreeBlock[i] == 0 ? 1 : 0;
 	}
 	return usedblock;
 }
