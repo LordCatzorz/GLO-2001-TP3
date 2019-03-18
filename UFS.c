@@ -96,7 +96,20 @@ void printiNode(iNodeEntry iNode) {
 	C'est votre partie, bon succès!
 	3e6a98197487be5b26d0e4ec2051411f
    ---------------------------------------------------------------------------------------- */
-					 
+int obtentionNoInodeLibre()
+{
+	char BlockFreeBitmap[BLOCK_SIZE];
+	ReadBlock(FREE_INODE_BITMAP,BlockFreeBitmap);
+	int compteur = 1;
+	while(compteur<32){
+		
+		if (BlockFreeBitmap[compteur]!=0)
+			return compteur;
+		compteur++;
+	}
+	return -1;
+	
+}			 
 // Renvoie le nombre de blocs utilise
 int bd_countusedblocks(void) {
 	char BlockFreeBitmap[BLOCK_SIZE];
@@ -145,9 +158,9 @@ int bd_stat(const char *pFilename, gstat *pStat) {
 				if (strcmp(maTab[i],pDE[l].Filename)==0)
 				{
 					estPresent=i;
-					ReadBlock(4+(pDE[l].iNode/8),InodesBlockEntry);
+					ReadBlock(BASE_BLOCK_INODE+(pDE[l].iNode/NUM_INODE_PER_BLOCK),InodesBlockEntry);
 					iNodeEntry *pINE = (iNodeEntry *) InodesBlockEntry;
-					pINodeEntry = pINE[pDE[l].iNode%8];
+					pINodeEntry = pINE[pDE[l].iNode%NUM_INODE_PER_BLOCK];
 					break;
 				}
 			}
@@ -162,12 +175,12 @@ int bd_stat(const char *pFilename, gstat *pStat) {
 }
 
 int bd_create(const char *pFilename) {
+	
 	// Obtention de l'i-node de   la racine.
 	char InodesBlockEntry[BLOCK_SIZE];
 	ReadBlock(4,InodesBlockEntry);
 	iNodeEntry *pINE = (iNodeEntry *) InodesBlockEntry;
-	iNodeEntry pINodeEntry = pINE[0];
-
+	iNodeEntry pINodeEntry = pINE[1];
 	int debut = 0;
 	int i = 0;
 	int j = 0;
@@ -183,35 +196,35 @@ int bd_create(const char *pFilename) {
 
    		 i++;
 	}
-
+	strncpy(maTab[j],pFilename + debut,i-debut);
+          	 	j++;
+	int estPresent;
 	for (i=1;i<j;i++)
 	{
-		int estPresent =-1;
+		estPresent =-1;
 		for (int k=0;k<N_BLOCK_PER_INODE;k++) 
 		{
-			printf("||| %s ||| \n",maTab[i]);
 			char DataBlockDirEntry[BLOCK_SIZE];
 			ReadBlock(pINodeEntry.Block[k],DataBlockDirEntry);
 			DirEntry *pDE = (DirEntry *) DataBlockDirEntry;
 			for (int l=0;l<(BLOCK_SIZE)/sizeof(DirEntry);l++)
 			{	
-				// J'affiche les   noms des fichiers des bloccccc eeeennnnnttttry
-				printf("||| %s ||| \n",pDE[l].Filename);
 				if (strcmp(maTab[i],pDE[l].Filename)==0)
 				{
 					estPresent=i;
-					ReadBlock(4+(pDE[l].iNode/8),InodesBlockEntry);
+					ReadBlock(BASE_BLOCK_INODE+(pDE[l].iNode/NUM_INODE_PER_BLOCK),InodesBlockEntry);
 					iNodeEntry *pINE = (iNodeEntry *) InodesBlockEntry;
-					pINodeEntry = pINE[pDE[l].iNode%8];
+					pINodeEntry = pINE[pDE[l].iNode%NUM_INODE_PER_BLOCK];
 					break;
 				}
 			}
 			if (estPresent!=-1) break;
 		}
-		if (estPresent==-1) return -1;
+		if (estPresent==-1 && i!=j-1) return -1;
 	}
+	if (estPresent!=-1) return -2;
 	
-	
+	int noInodeLibre = obtentionNoInodeLibre();
 
 	return 0;
 }
