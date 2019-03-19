@@ -210,12 +210,12 @@ int bd_create(const char *pFilename) {
 	strncpy(maTab[j],pFilename + debut,i-debut);
           	 	j++;
 	int estPresent;
+	char DataBlockDirEntry[BLOCK_SIZE];
 	for (i=1;i<j;i++)
 	{
 		estPresent =-1;
 		for (int k=0;k<N_BLOCK_PER_INODE;k++) 
 		{
-			char DataBlockDirEntry[BLOCK_SIZE];
 			ReadBlock(pINodeEntry.Block[k],DataBlockDirEntry);
 			DirEntry *pDE = (DirEntry *) DataBlockDirEntry;
 			for (int l=0;l<(BLOCK_SIZE)/sizeof(DirEntry);l++)
@@ -237,6 +237,31 @@ int bd_create(const char *pFilename) {
 	
 	UINT16 noInodeLibre = obtentionNoInodeLibre();
 	SaisieFreeInode(noInodeLibre);
+	// Initialisation de l'inode (peut etre en faire une fonction)
+	// d'abord on ajoute au repertoire parent le fichier
+	for (int i=0;i<N_BLOCK_PER_INODE;i++)
+	{
+		ReadBlock(pINodeEntry.Block[i],DataBlockDirEntry);
+		DirEntry *pDE = (DirEntry *) DataBlockDirEntry;
+		if ((pINodeEntry.iNodeStat.st_size/sizeof(DirEntry))<(BLOCK_SIZE/sizeof(DirEntry)))
+		{
+			pDE[pINodeEntry.iNodeStat.st_size/sizeof(DirEntry)].iNode=noInodeLibre;
+			strcpy(maTab[j-1],pDE[pINodeEntry.iNodeStat.st_size/sizeof(DirEntry)].Filename);
+			pINodeEntry.iNodeStat.st_size+=sizeof(DirEntry);
+			WriteBlock(pINodeEntry.Block[i],(char *)pDE);
+			break;																														
+		}
+	}																																						
+	// on initialise l'inode du nouveau fichier
+	ReadBlock(BASE_BLOCK_INODE+(noInodeLibre/NUM_INODE_PER_BLOCK),InodesBlockEntry);																														
+	iNodeEntry *pINENewInode = (iNodeEntry *) InodesBlockEntry;
+	pINENewInode[noInodeLibre%NUM_INODE_PER_BLOCK].iNodeStat.st_ino=noInodeLibre;
+	pINENewInode[noInodeLibre%NUM_INODE_PER_BLOCK].iNodeStat.st_mode=G_IFREG;
+	pINENewInode[noInodeLibre%NUM_INODE_PER_BLOCK].iNodeStat.st_nlink=1;
+	pINENewInode[noInodeLibre%NUM_INODE_PER_BLOCK].iNodeStat.st_size=0;
+	pINENewInode[noInodeLibre%NUM_INODE_PER_BLOCK].iNodeStat.st_blocks=0;
+	WriteBlock(BASE_BLOCK_INODE+(noInodeLibre/NUM_INODE_PER_BLOCK),(char *)pINENewInode);																														
+	
 	return 0;
 }
 
