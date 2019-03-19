@@ -362,7 +362,12 @@ int bd_read(const char *pFilename, char *buffer, int offset, int numbytes) {
 		offset_block++;
 		if (offset_block>pINodeEntry.iNodeStat.st_size)
 			return index_buffer;
-		
+		if (offset_block>BLOCK_SIZE)
+		{	
+			n++;
+			ReadBlock(pINodeEntry.Block[n],pDELecture);
+			offset_block=1;
+		}
 	}
 	return index_buffer;
 }
