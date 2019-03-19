@@ -266,7 +266,66 @@ int bd_create(const char *pFilename) {
 }
 
 int bd_read(const char *pFilename, char *buffer, int offset, int numbytes) {
-	return -1;
+	// Obtention de l'i-node de   la racine.
+	char InodesBlockEntry[BLOCK_SIZE];
+	ReadBlock(4,InodesBlockEntry);
+	iNodeEntry *pINE = (iNodeEntry *) InodesBlockEntry;
+	iNodeEntry pINodeEntry = pINE[1];
+	int debut = 0;
+	int i = 0;
+	int j = 0;
+	char maTab[50][200];
+	while(pFilename[i] != '\0')
+	{
+    		if(pFilename[i] == '/')
+    		{
+          		 strncpy(maTab[j],pFilename + debut,i-debut);//copie seulement i-debut octet à partir du debut ième caractère de fileName.
+          	 	j++;
+          		debut = i+1;
+    		}
+
+   		 i++;
+	}
+	strncpy(maTab[j],pFilename + debut,i-debut);
+          	 	j++;
+	int estPresent;
+	char DataBlockDirEntry[BLOCK_SIZE];
+	for (i=1;i<j;i++)
+	{
+		estPresent =-1;
+		for (int k=0;k<N_BLOCK_PER_INODE;k++) 
+		{
+			ReadBlock(pINodeEntry.Block[k],DataBlockDirEntry);
+			DirEntry *pDE = (DirEntry *) DataBlockDirEntry;
+			for (int l=0;l<(BLOCK_SIZE)/sizeof(DirEntry);l++)
+			{	
+				if (strcmp(maTab[i],pDE[l].Filename)==0)
+				{
+					estPresent=i;
+					ReadBlock(BASE_BLOCK_INODE+(pDE[l].iNode/NUM_INODE_PER_BLOCK),InodesBlockEntry);
+					iNodeEntry *pINE = (iNodeEntry *) InodesBlockEntry;
+					pINodeEntry = pINE[pDE[l].iNode%NUM_INODE_PER_BLOCK];
+					break;
+				}
+			}
+			if (estPresent!=-1) break;
+		}
+		if (estPresent==-1)
+		{
+			printf("Le fichier %s est inexistant! \n",maTab[j-1]);
+			return -1;
+		}	
+	}
+	if (estPresent!=-1 && (pINodeEntry.iNodeStat.st_mode & G_IFDIR)) 
+	{
+		printf("Le fichier %s est un repertoire! \n",maTab[j-1]);
+		return -2;
+	}
+	if (offset>pINodeEntry.iNodeStat.st_size) 
+	{
+		return 0;
+	}
+	return 100;
 }
 
 int bd_write(const char *pFilename, const char *buffer, int offset, int numbytes) { 
