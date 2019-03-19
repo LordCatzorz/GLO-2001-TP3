@@ -111,6 +111,31 @@ int obtentionNoInodeLibre()
 	
 }	
 
+int obtenirIndiceNouveauBloc()
+{
+	char BlocFreeBitmap[BLOCK_SIZE];
+	ReadBlock(FREE_BLOCK_BITMAP,BlocFreeBitmap);
+	int compteur = 8;
+	while(compteur<255){
+		
+		if (BlocFreeBitmap[compteur]!=0)
+			return compteur;
+		compteur++;
+	}
+	return -1;
+	
+}
+
+int saisieBloc(UINT16 BlockNum)
+{
+	char BlockFreeBitmap[BLOCK_SIZE];
+	ReadBlock(FREE_BLOCK_BITMAP,BlockFreeBitmap);
+	BlockFreeBitmap[BlockNum]=0;
+	printf("Saisie block %d \n",BlockNum);
+	WriteBlock(FREE_BLOCK_BITMAP,BlockFreeBitmap);
+	return 1;
+}
+
 int SaisieFreeInode(UINT16 InodeNum)
 {
 	char InodeFreeBitmap[BLOCK_SIZE];
@@ -246,7 +271,7 @@ int bd_create(const char *pFilename) {
 		if ((pINodeEntry.iNodeStat.st_size/sizeof(DirEntry))<(BLOCK_SIZE/sizeof(DirEntry)))
 		{
 			pDE[pINodeEntry.iNodeStat.st_size/sizeof(DirEntry)].iNode=noInodeLibre;
-			strcpy(maTab[j-1],pDE[pINodeEntry.iNodeStat.st_size/sizeof(DirEntry)].Filename);
+			strcpy(pDE[pINodeEntry.iNodeStat.st_size/sizeof(DirEntry)].Filename,maTab[j-1]);
 			pINodeEntry.iNodeStat.st_size+=sizeof(DirEntry);
 			WriteBlock(pINodeEntry.Block[i],(char *)pDE);
 			break;																														
@@ -325,11 +350,132 @@ int bd_read(const char *pFilename, char *buffer, int offset, int numbytes) {
 	{
 		return 0;
 	}
-	return 100;
+	int n = offset / BLOCK_SIZE;
+	int nBlocLecture = pINodeEntry.Block[n];
+	int offset_block = offset % BLOCK_SIZE;
+	ReadBlock(pINodeEntry.Block[n],DataBlockDirEntry);
+	char *pDELecture = DataBlockDirEntry;
+	int index_buffer;
+	for (index_buffer=0;index_buffer<numbytes;index_buffer++)
+	{
+		buffer[index_buffer]=pDELecture[offset_block];
+		offset_block++;
+		if (offset_block>pINodeEntry.iNodeStat.st_size)
+			return index_buffer;
+		
+	}
+	return index_buffer;
 }
 
 int bd_write(const char *pFilename, const char *buffer, int offset, int numbytes) { 
-	return -1;
+	// Obtention de l'i-node de   la racine.
+	char InodesBlockEntry[BLOCK_SIZE];
+	ReadBlock(4,InodesBlockEntry);
+	iNodeEntry *pINE = (iNodeEntry *) InodesBlockEntry;
+	iNodeEntry pINodeEntry = pINE[1];
+	int debut = 0;
+	int i = 0;
+	int j = 0;
+	char maTab[50][200];
+	while(pFilename[i] != '\0')
+	{
+    		if(pFilename[i] == '/')
+    		{
+          		 strncpy(maTab[j],pFilename + debut,i-debut);//copie seulement i-debut octet à partir du debut ième caractère de fileName.
+          	 	j++;
+          		debut = i+1;
+    		}
+
+   		 i++;
+	}
+	strncpy(maTab[j],pFilename + debut,i-debut);
+          	 	j++;
+	int estPresent;
+	char DataBlockDirEntry[BLOCK_SIZE];
+	for (i=1;i<j;i++)
+	{
+		estPresent =-1;
+		for (int k=0;k<N_BLOCK_PER_INODE;k++) 
+		{
+			ReadBlock(pINodeEntry.Block[k],DataBlockDirEntry);
+			DirEntry *pDE = (DirEntry *) DataBlockDirEntry;
+			for (int l=0;l<(BLOCK_SIZE)/sizeof(DirEntry);l++)
+			{	
+				if (strcmp(maTab[i],pDE[l].Filename)==0)
+				{
+					estPresent=i;
+					ReadBlock(BASE_BLOCK_INODE+(pDE[l].iNode/NUM_INODE_PER_BLOCK),InodesBlockEntry);
+					iNodeEntry *pINE = (iNodeEntry *) InodesBlockEntry;
+					pINodeEntry = pINE[pDE[l].iNode%NUM_INODE_PER_BLOCK];
+					break;
+				}
+			}
+			if (estPresent!=-1) break;
+		}
+		if (estPresent==-1)
+		{
+			printf("Le fichier %s est inexistant! \n",maTab[j-1]);
+			return -1;
+		}	
+	}
+	if (estPresent!=-1 && (pINodeEntry.iNodeStat.st_mode & G_IFDIR)) 
+	{
+		printf("Le fichier %s est un repertoire! \n",maTab[j-1]);
+		return -2;
+	}
+	if (offset>pINodeEntry.iNodeStat.st_size) 
+	{
+		printf("L'offset est trop grand! \n");
+		return -3;
+	}
+	if (offset>=255) 
+	{
+		return -4;
+	}
+
+	if (pINodeEntry.iNodeStat.st_size==0)
+	{
+		int n_nouveauBloc = obtenirIndiceNouveauBloc();
+		saisieBloc(n_nouveauBloc);
+		pINodeEntry.Block[0]=n_nouveauBloc;
+		
+	}
+	int n = offset / BLOCK_SIZE;
+	int nBlocLecture = pINodeEntry.Block[n];
+	int offset_block = offset % BLOCK_SIZE;
+	ReadBlock(pINodeEntry.Block[n],DataBlockDirEntry);
+	char *pDEcriture = DataBlockDirEntry;
+	int buffer_index = 0;
+	int octet_ecrit = 0;
+	while ( pINodeEntry.iNodeStat.st_size < N_BLOCK_PER_INODE*BLOCK_SIZE && buffer_index!=strlen(buffer))
+	{
+		if (pINodeEntry.iNodeStat.st_size<=(offset_block+n*BLOCK_SIZE))
+		{
+			pINodeEntry.iNodeStat.st_size++;
+			offset++;
+		}
+		pDEcriture[offset_block]=buffer[buffer_index];
+		buffer_index++;
+		offset_block++;
+		if (offset_block>=BLOCK_SIZE)
+		{
+			WriteBlock(pINodeEntry.Block[n],pDEcriture);
+			offset_block=0;
+			n++;
+			int n_nouveauBloc = obtenirIndiceNouveauBloc();
+			saisieBloc(n_nouveauBloc);
+			pINodeEntry.Block[n]=n_nouveauBloc;
+			pINodeEntry.iNodeStat.st_blocks++;
+			ReadBlock(pINodeEntry.Block[n],pDEcriture);
+		} 
+	}
+	
+	WriteBlock(pINodeEntry.Block[n],pDEcriture);
+	ReadBlock(BASE_BLOCK_INODE+(pINodeEntry.iNodeStat.st_ino/NUM_INODE_PER_BLOCK),InodesBlockEntry);
+	iNodeEntry *pINEcriture = (iNodeEntry *) InodesBlockEntry;
+	pINEcriture[pINodeEntry.iNodeStat.st_ino%NUM_INODE_PER_BLOCK] = pINodeEntry;			
+	WriteBlock(BASE_BLOCK_INODE+(pINodeEntry.iNodeStat.st_ino/NUM_INODE_PER_BLOCK),(char*)pINEcriture);
+	return buffer_index;
 }
 
 int bd_mkdir(const char *pDirName) {
