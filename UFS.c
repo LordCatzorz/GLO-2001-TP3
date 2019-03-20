@@ -4,6 +4,8 @@
 #include <string.h>
 #include "disque.h"
 
+#define MAX_BLOCK_INODE ((BASE_BLOCK_INODE + (N_INODE_ON_DISK/NUM_INODE_PER_BLOCK)) -1)
+
 // Quelques fonctions qui pourraient vous être utiles
 int NumberofDirEntry(int Size) {
 	return Size/sizeof(DirEntry);
@@ -91,6 +93,111 @@ void printiNode(iNodeEntry iNode) {
 	}
 }
 
+/* Cette contion prendre en paramètre un numéro de block
+   Elle retourne:
+       -1 Si problème de lecture du block.
+	   -2 Si le blockNumber est hors de l'interle
+	    0 Si ok et retourne un tableau d'InodeEntry dans le paramètre de sortie.*/
+int getINodeBlockFromBlockNumber(const UINT16 blockNumber, iNodeEntry** outINodeTable)
+{
+	if ((blockNumber >= BASE_BLOCK_INODE) && (blockNumber <= MAX_BLOCK_INODE))
+	{
+		char iNodeRawBlock[BLOCK_SIZE];
+		if (ReadBlock(blockNumber, iNodeRawBlock) > 0)
+		{
+			*outINodeTable = (iNodeEntry*)iNodeRawBlock;
+			return 0;
+		} else {
+			return -1; //Bad read
+		}
+	} else {
+		return -2; // Out of bound blockNumber.
+	}
+	
+}
+
+/* Cette fonction prendre en paramètre un numéro d'i-node.
+   Elle retourne:
+      -2 Si un problème de lecture sur le disque.
+      -1 Si ce numéro n'est pas valide.
+      0  Si ce numéro n'est pas assignée
+      1  Si ce numéro est assignée */
+int getINodeNumberIsAssigned(const UINT16 iNodeNumber)
+{
+	if (iNodeNumber <= 0 || iNodeNumber > N_INODE_ON_DISK) {
+		return -1; // Invalid INodeNumber
+	}
+	char bitmapFreeINode[BLOCK_SIZE];
+	if (ReadBlock(FREE_INODE_BITMAP, bitmapFreeINode) > 0)
+	{
+		return bitmapFreeINode[iNodeNumber] == 0 ? 1 : 0; 
+	} else
+	{
+		return -2; // Bad read.
+	}
+}
+
+/* Cette fonction prend en paramètre un iNodeNumber.
+   Elle retourne
+       -1 Si ce numéro de i-node n'est pas valide.
+       -2 Si ce numéro de i-node n'est pas assignée.
+        0 Si le iNodeEstValide et outiNodeEntry contient ce i-node */
+int getINodeEntryFromINodeNumber(const UINT16 iNodeNumber, iNodeEntry* outiNodeEntry)
+{
+	int iNodeIsAssigned = getINodeNumberIsAssigned(iNodeNumber);
+	if (iNodeIsAssigned == -1) {
+		return -1; //Invalid
+	} else if (iNodeIsAssigned == 0) {
+		return -2; //Non assignée
+	}
+	char iNodeBlockNumber = iNodeNumber / NUM_INODE_PER_BLOCK;
+	char iNodeInBlockOffset = iNodeNumber % NUM_INODE_PER_BLOCK;
+
+	iNodeEntry* iNodeTable;
+	getINodeBlockFromBlockNumber(BASE_BLOCK_INODE + iNodeBlockNumber, &iNodeTable);
+	// char iNodeRawBlock[BLOCK_SIZE];
+	// ReadBlock(BASE_BLOCK_INODE + iNodeBlockNumber, iNodeRawBlock);
+	
+	// iNodeEntry* iNodeTable = (iNodeEntry*)iNodeRawBlock;
+	*outiNodeEntry = iNodeTable[iNodeInBlockOffset];
+	return 0;
+}
+
+/* Cette fonction prend en paramètre un chemin de dossier/fichier.
+   Elle retourne:
+       0 Si le iNode a bien été trouvé, et affecte ce numéro d'inode dans le paramètre iNodeNumber
+      -1 Si le chemin est invalide.
+*/
+
+int getINodeNumberOfPath(const char *pPath, int* iNodeNumber){
+	printf("Entered with %s\n", pPath);
+	if ((strlen(pPath)>0) && (strcmp(pPath, "/")==0)){
+		*iNodeNumber=1; //Is Root
+		return 0;
+	} 
+	char* lastSlashString = strrchr(pPath, '/');
+	size_t lengthRemainingText = -1;
+	if (strcmp(pPath, lastSlashString)==0) 
+	{
+		//Il n'y a plus de sous-dossiers.
+		lengthRemainingText = 1;
+	} else
+	{
+		// A Encore des sous-dossiers	
+		// Prévoire un buffer de la grosseur restante de la chaine, si on retire le texte à partir du dernier slash
+		lengthRemainingText = strlen(pPath)-strlen(lastSlashString);
+	}
+	char remainingPath[lengthRemainingText];
+	strncpy(remainingPath, pPath, lengthRemainingText);
+
+	//Obtenir l'iNode du parent
+	getINodeNumberOfPath(remainingPath, iNodeNumber);
+
+	iNodeEntry iNodeEntry;
+	getINodeEntryFromINodeNumber(*iNodeNumber, &iNodeEntry);
+
+}
+
 
 /* ----------------------------------------------------------------------------------------
 	C'est votre partie, bon succès!
@@ -109,6 +216,13 @@ int bd_countusedblocks(void) {
 }
 
 int bd_stat(const char *pFilename, gstat *pStat) {
+	int iNodeNumber = -1;
+	getINodeNumberOfPath("/", &iNodeNumber);
+	printf("/ -> %d \n", iNodeNumber);
+	getINodeNumberOfPath("/Bonjour/LesAmis.txt", &iNodeNumber);
+	printf("/ -> %d \n", iNodeNumber);
+	getINodeNumberOfPath("/b.txt", &iNodeNumber);
+	printf("/ -> %d \n", iNodeNumber);
 	return -1;
 }
 
