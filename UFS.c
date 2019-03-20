@@ -92,6 +92,22 @@ void printiNode(iNodeEntry iNode) {
 		printf("\t\t      Block[%d]=%d\n",index,iNode.Block[index]);
 	}
 }
+int getDirBlockFromBlockNumber(const UINT16 blockNumber, DirEntry** outDirTable)
+{
+	if ((blockNumber > MAX_BLOCK_INODE) && (blockNumber <= N_BLOCK_ON_DISK))
+	{
+		char dataRawBlock[BLOCK_SIZE];
+		if (ReadBlock(blockNumber, dataRawBlock) > 0)
+		{
+			*outDirTable = (DirEntry*)dataRawBlock;
+			return 0;
+		} else {
+			return -1; //Bad read
+		}
+	} else {
+		return -2; // Out of bound blockNumber.
+	}
+}
 
 /* Cette contion prendre en paramètre un numéro de block
    Elle retourne:
@@ -168,30 +184,30 @@ int getINodeEntryFromINodeNumber(const UINT16 iNodeNumber, iNodeEntry* outiNodeE
 int getINodeNumberOfPath(const char *pPath, int* iNodeNumber){
 	printf("Entered with %s\n", pPath);
 	if ((strlen(pPath)>0) && (strcmp(pPath, "/")==0)){
-		*iNodeNumber=1; //Is Root
+		*iNodeNumber=ROOT_INODE; //Is Root
 		return 0;
 	} 
-	char* lastSlashString = strrchr(pPath, '/');
-	size_t lengthRemainingText = -1;
-	if (strcmp(pPath, lastSlashString)==0) 
-	{
-		//Il n'y a plus de sous-dossiers.
-		lengthRemainingText = 1;
-	} else
-	{
-		// A Encore des sous-dossiers	
-		// Prévoire un buffer de la grosseur restante de la chaine, si on retire le texte à partir du dernier slash
-		lengthRemainingText = strlen(pPath)-strlen(lastSlashString);
-	}
-	char remainingPath[lengthRemainingText];
-	strncpy(remainingPath, pPath, lengthRemainingText);
-
+	char fileString[FILENAME_SIZE];
+	GetFilenameFromPath(pPath, &fileString);
+	char dirString[strlen(pPath) - strlen(fileString)];
+	GetDirFromPath(pPath, &dirString);
+	//Permet de sauter le premier caractère.
 	//Obtenir l'iNode du parent
-	getINodeNumberOfPath(remainingPath, iNodeNumber);
+	getINodeNumberOfPath(dirString, iNodeNumber);
 	iNodeEntry parentInode;
 	getINodeEntryFromINodeNumber(*iNodeNumber, &parentInode);
 
-	//Faire magie avec parent INode et lasySlashString pour trouver l'iNode du fichier en cours. (Via le DirEntry)
+	//Faire magie avec parent INode et SlashString pour trouver l'iNode du fichier en cours. (Via le DirEntry)
+	DirEntry* dirEntryTable;
+	getDirBlockFromBlockNumber(parentInode.Block[0], &dirEntryTable);
+	for (size_t i = 0; i < NumberofDirEntry(BLOCK_SIZE); i++)
+	{
+		if (strcmp(dirEntryTable[i].Filename, fileString) ==0) {
+			*iNodeNumber = dirEntryTable[i].iNode;
+			return 0;
+		}
+	}
+	return -1;
 }
 
 
