@@ -27,7 +27,7 @@ RetVal:3
 
 ls /doc/tmp/subtmp 
  drwxrwx              . size:      48 inode:  6 nlink: 2
- drwxrwx             .. size:      48 inode:  5 nlink: 3
+ drwxrwx             .. size:      48 inode:  5 nmkdirlink: 3
  -rwxrwx          b.txt size:       0 inode:  8 nlink: 1
 RetVal:3
 
@@ -413,8 +413,8 @@ RetVal:-2
                     Tester la commande rmdir
 --------------------------------------------------------------------
 
-blockused 
-Nombre de blocs utilisé: 14
+rmblockused 
+Nombre de blocs utilisé: 1
 RetVal:14
 
 rmdir /rep 
