@@ -155,10 +155,6 @@ int getINodeEntryFromINodeNumber(const UINT16 iNodeNumber, iNodeEntry* outiNodeE
 
 	iNodeEntry* iNodeTable;
 	getINodeBlockFromBlockNumber(BASE_BLOCK_INODE + iNodeBlockNumber, &iNodeTable);
-	// char iNodeRawBlock[BLOCK_SIZE];
-	// ReadBlock(BASE_BLOCK_INODE + iNodeBlockNumber, iNodeRawBlock);
-	
-	// iNodeEntry* iNodeTable = (iNodeEntry*)iNodeRawBlock;
 	*outiNodeEntry = iNodeTable[iNodeInBlockOffset];
 	return 0;
 }
@@ -192,10 +188,10 @@ int getINodeNumberOfPath(const char *pPath, int* iNodeNumber){
 
 	//Obtenir l'iNode du parent
 	getINodeNumberOfPath(remainingPath, iNodeNumber);
+	iNodeEntry parentInode;
+	getINodeEntryFromINodeNumber(*iNodeNumber, &parentInode);
 
-	iNodeEntry iNodeEntry;
-	getINodeEntryFromINodeNumber(*iNodeNumber, &iNodeEntry);
-
+	//Faire magie avec parent INode et lasySlashString pour trouver l'iNode du fichier en cours. (Via le DirEntry)
 }
 
 
