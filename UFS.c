@@ -92,6 +92,12 @@ void printiNode(iNodeEntry iNode) {
 		printf("\t\t      Block[%d]=%d\n",index,iNode.Block[index]);
 	}
 }
+
+/* Cette fonction prendre en paramètre un numéro de block
+   Elle retourne:
+     -1 Si problème de lecture du bloc.
+     -2 Si le numéro de bloc est hors des valeurs possibles.
+      0 Si ok et retourne un tableau de dirEntry dans le paramètre outDirTable.*/
 int getDirBlockFromBlockNumber(const UINT16 blockNumber, DirEntry** outDirTable)
 {
 	if ((blockNumber > MAX_BLOCK_INODE) && (blockNumber <= N_BLOCK_ON_DISK))
@@ -112,8 +118,8 @@ int getDirBlockFromBlockNumber(const UINT16 blockNumber, DirEntry** outDirTable)
 /* Cette contion prendre en paramètre un numéro de block
    Elle retourne:
        -1 Si problème de lecture du block.
-	   -2 Si le blockNumber est hors de l'interle
-	    0 Si ok et retourne un tableau d'InodeEntry dans le paramètre de sortie.*/
+       -2 Si le blockNumber est hors de l'interle
+        0 Si ok et retourne un tableau d'InodeEntry dans le paramètre de sortie.*/
 int getINodeBlockFromBlockNumber(const UINT16 blockNumber, iNodeEntry** outINodeTable)
 {
 	if ((blockNumber >= BASE_BLOCK_INODE) && (blockNumber <= MAX_BLOCK_INODE))
@@ -157,20 +163,33 @@ int getINodeNumberIsAssigned(const UINT16 iNodeNumber)
    Elle retourne
        -1 Si ce numéro de i-node n'est pas valide.
        -2 Si ce numéro de i-node n'est pas assignée.
-        0 Si le iNodeEstValide et outiNodeEntry contient ce i-node */
+	   -3 Si un problème de lecture est survenu.
+        0 Si le iNode est valide et outiNodeEntry contient ce i-node */
 int getINodeEntryFromINodeNumber(const UINT16 iNodeNumber, iNodeEntry* outiNodeEntry)
 {
-	int iNodeIsAssigned = getINodeNumberIsAssigned(iNodeNumber);
-	if (iNodeIsAssigned == -1) {
-		return -1; //Invalid
-	} else if (iNodeIsAssigned == 0) {
-		return -2; //Non assignée
+	switch (getINodeNumberIsAssigned(iNodeNumber))
+	{
+		case -1:
+			return -1; // Invalid iNode
+		case 0:
+			return -2; // Non Assigne
+		default:
+			break;//Continue
 	}
+	
 	char iNodeBlockNumber = iNodeNumber / NUM_INODE_PER_BLOCK;
 	char iNodeInBlockOffset = iNodeNumber % NUM_INODE_PER_BLOCK;
 
 	iNodeEntry* iNodeTable;
-	getINodeBlockFromBlockNumber(BASE_BLOCK_INODE + iNodeBlockNumber, &iNodeTable);
+	switch (getINodeBlockFromBlockNumber(BASE_BLOCK_INODE + iNodeBlockNumber, &iNodeTable))
+	{
+		case -2:
+			return -1; // Invalid iNode
+		case -1:
+			return -3; // Bad read
+		default:
+			break;//Continue
+	}
 	*outiNodeEntry = iNodeTable[iNodeInBlockOffset];
 	return 0;
 }
@@ -180,26 +199,60 @@ int getINodeEntryFromINodeNumber(const UINT16 iNodeNumber, iNodeEntry* outiNodeE
        0 Si le iNode a bien été trouvé, et affecte ce numéro d'inode dans le paramètre iNodeNumber
       -1 Si le chemin est invalide.
 */
-
 int getINodeNumberOfPath(const char *pPath, int* iNodeNumber){
-	printf("Entered with %s\n", pPath);
 	if ((strlen(pPath)>0) && (strcmp(pPath, "/")==0)){
 		*iNodeNumber=ROOT_INODE; //Is Root
 		return 0;
 	} 
 	char fileString[FILENAME_SIZE];
-	GetFilenameFromPath(pPath, &fileString);
+	switch (GetFilenameFromPath(pPath, fileString))
+	{
+		case 0:
+			return -1; //Invalid path
+		default:
+			break;//Continue
+	}
 	char dirString[strlen(pPath) - strlen(fileString)];
-	GetDirFromPath(pPath, &dirString);
+
+	switch (GetDirFromPath(pPath, dirString))
+	{
+		case 0:
+			return -1; //Invalid path
+		default:
+			break;//Continue
+	}
 	//Permet de sauter le premier caractère.
 	//Obtenir l'iNode du parent
-	getINodeNumberOfPath(dirString, iNodeNumber);
+	switch(getINodeNumberOfPath(dirString, iNodeNumber))
+	{
+		case -1:
+			return -1; //Invalid path
+		case -2:
+			return -2; // Invalid read;
+		default:
+			break;//Continue
+	}
 	iNodeEntry parentInode;
-	getINodeEntryFromINodeNumber(*iNodeNumber, &parentInode);
+	switch (getINodeEntryFromINodeNumber(*iNodeNumber, &parentInode))
+	{
+		case -1:
+		case -2:
+		case -3: 
+			return -2; // Invalid read
+		default:
+			break;//Continue
+	}
 
 	//Faire magie avec parent INode et SlashString pour trouver l'iNode du fichier en cours. (Via le DirEntry)
 	DirEntry* dirEntryTable;
-	getDirBlockFromBlockNumber(parentInode.Block[0], &dirEntryTable);
+	switch (getDirBlockFromBlockNumber(parentInode.Block[0], &dirEntryTable))
+	{
+		case -1:
+		case -2:
+			return -2; // Invalid read
+		default:
+			break;//Continue
+	}
 	for (size_t i = 0; i < NumberofDirEntry(BLOCK_SIZE); i++)
 	{
 		if (strcmp(dirEntryTable[i].Filename, fileString) ==0) {
@@ -229,13 +282,25 @@ int bd_countusedblocks(void) {
 
 int bd_stat(const char *pFilename, gstat *pStat) {
 	int iNodeNumber = -1;
-	getINodeNumberOfPath("/", &iNodeNumber);
-	printf("/ -> %d \n", iNodeNumber);
-	getINodeNumberOfPath("/Bonjour/LesAmis.txt", &iNodeNumber);
-	printf("/ -> %d \n", iNodeNumber);
-	getINodeNumberOfPath("/b.txt", &iNodeNumber);
-	printf("/ -> %d \n", iNodeNumber);
-	return -1;
+	switch (getINodeNumberOfPath(pFilename, &iNodeNumber))
+	{
+		case -1:
+			return -1; // Invalid path
+		default:
+			break; // Continue 
+	}
+	iNodeEntry fileiNodeEntry;
+	switch(getINodeEntryFromINodeNumber(iNodeNumber, &fileiNodeEntry))
+	{
+		case -1:
+		case -2:
+		case -3:
+			return -2; // Internal error
+		default:
+			break;// Continue
+	}
+	*pStat = fileiNodeEntry.iNodeStat;
+	return 0;
 }
 
 int bd_create(const char *pFilename) {
