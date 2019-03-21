@@ -194,6 +194,33 @@ int getINodeEntryFromINodeNumber(const UINT16 iNodeNumber, iNodeEntry* outiNodeE
 	return 0;
 }
 
+
+/* Cette fonction prend en paramètre un iNode d'un répertoire et le nom d'un fichier.
+	Elle retourne 
+		-2 si problème de lecture du bloc.
+		-1 si le fichier n'Existe pas
+		 0 Si le fichier est trouvé et outINodeNumber contient l'inode de ce fichier.*/
+int getFileInodeFromDirectoryINode(const iNodeEntry* parentInode, const char* fileString, int* outINodeNumber)
+{
+	DirEntry* dirEntryTable;
+	switch (getDirBlockFromBlockNumber(parentInode->Block[0], &dirEntryTable))
+	{
+		case -1:
+		case -2:
+			return -2; // Invalid read
+		default:
+			break;//Continue
+	}
+	for (size_t i = 0; i < NumberofDirEntry(BLOCK_SIZE); i++)
+	{
+		if (strcmp(dirEntryTable[i].Filename, fileString) ==0) {
+			*outINodeNumber = dirEntryTable[i].iNode;
+			return 0;
+		}
+	}
+	return -1;
+}
+
 /* Cette fonction prend en paramètre un chemin de dossier/fichier.
    Elle retourne:
        0 Si le iNode a bien été trouvé, et affecte ce numéro d'inode dans le paramètre iNodeNumber
@@ -243,24 +270,16 @@ int getINodeNumberOfPath(const char *pPath, int* iNodeNumber){
 			break;//Continue
 	}
 
-	//Faire magie avec parent INode et SlashString pour trouver l'iNode du fichier en cours. (Via le DirEntry)
-	DirEntry* dirEntryTable;
-	switch (getDirBlockFromBlockNumber(parentInode.Block[0], &dirEntryTable))
+	switch(getFileInodeFromDirectoryINode(&parentInode, fileString, iNodeNumber))
 	{
+		case 0:
+			return 0;
 		case -1:
+			return -1; // File Not found
 		case -2:
 			return -2; // Invalid read
-		default:
-			break;//Continue
+
 	}
-	for (size_t i = 0; i < NumberofDirEntry(BLOCK_SIZE); i++)
-	{
-		if (strcmp(dirEntryTable[i].Filename, fileString) ==0) {
-			*iNodeNumber = dirEntryTable[i].iNode;
-			return 0;
-		}
-	}
-	return -1;
 }
 
 
@@ -304,6 +323,24 @@ int bd_stat(const char *pFilename, gstat *pStat) {
 }
 
 int bd_create(const char *pFilename) {
+	char dirPath[strlen(pFilename)];
+	switch (GetDirFromPath(pFilename, &dirPath))
+	{
+		case 0:
+			return -1; //Le répertoire n'existe pas.
+		case 1:
+			break;//Continue
+	}
+	int inodeDirectory = -1;
+	switch(getINodeNumberOfPath(dirPath, &inodeDirectory))
+	{
+		case -1:
+			return -1; //Le répertoire n'existe pas.
+		case 0:
+			break;//Continue
+	}
+
+	
 	return -1;
 }
 
