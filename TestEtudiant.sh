@@ -272,7 +272,22 @@ echo
 echo "--------------------------------------------------------------------"
 echo "            Tester la fonction perso"
 echo "--------------------------------------------------------------------"
-./ufs perso
+
+echo "Création de dossier dans la racine"
+./ufs mkdir /bb
+./ufs mkdir /aabdgdfg
+./ufs create /.aba
+./ufs mkdir /babdd
+./ufs create /abagg
+
+echo "Visualisation de la racine avant"
+./ufs ls /
+
+echo "Trie de la racine"
+./ufs sort /
+
+echo "Visualisation de la racine après très"
+./ufs ls /
 
 
 
