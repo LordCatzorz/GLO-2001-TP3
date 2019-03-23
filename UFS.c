@@ -359,13 +359,13 @@ int bd_read(const char *pFilename, char *buffer, int offset, int numbytes) {
 		}
 		if (estPresent==-1)
 		{
-			printf("Le fichier %s est inexistant! \n",maTab[j-1]);
+			printf("Le fichier %s est inexistant! \n", pFilename);
 			return -1;
 		}	
 	}
 	if (estPresent!=-1 && (pINodeEntry.iNodeStat.st_mode & G_IFDIR)) 
 	{
-		printf("Le fichier %s est un repertoire! \n",maTab[j-1]);
+		printf("Le fichier %s est un repertoire! \n", pFilename);
 		return -2;
 	}
 	if (offset>pINodeEntry.iNodeStat.st_size) 
@@ -441,18 +441,18 @@ int bd_write(const char *pFilename, const char *buffer, int offset, int numbytes
 		}
 		if (estPresent==-1)
 		{
-			printf("Le fichier %s est inexistant! \n",maTab[j-1]);
+			printf("Le fichier %s est inexistant! \n",pFilename);
 			return -1;
 		}	
 	}
 	if (estPresent!=-1 && (pINodeEntry.iNodeStat.st_mode & G_IFDIR)) 
 	{
-		printf("Le fichier %s est un repertoire! \n",maTab[j-1]);
+		printf("Le fichier %s est un repertoire! \n",pFilename);
 		return -2;
 	}
 	if (offset>pINodeEntry.iNodeStat.st_size) 
 	{
-		printf("L'offset est trop grand pour %s!\n", maTab[j-1]);
+		printf("L'offset demande est trop grand pour %s!\n", pFilename);
 		return -3;
 	}
 	if (offset>=255) 
@@ -1254,7 +1254,7 @@ int bd_chmod(const char *pFilename, UINT16 st_mode) {
 		}
 		if (estPresent==-1)
 		{
-			printf("Le fichier %s est inexistant! \n",maTab[j-1]);
+			printf("Le fichier %s est inexistant! \n",pFilename);
 			return -1;
 		}	
 	}
