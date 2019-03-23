@@ -1005,8 +1005,9 @@ int bd_rename(const char *pFilename, const char *pDestFilename) {
 	// Si le fichier à copier est repertoire alors changer son ".." et on  augmente le link du parent
 	if (pINodeEntryFichier.iNodeStat.st_mode & G_IFDIR)	
 	{
-		ReadBlock(pINodeEntryFichier.Block[0],DataBlockDirEntry);
-		DirEntry * pDEFichier = (DirEntry*)DataBlockDirEntry;
+		char newDataBlockDirEntry[BLOCK_SIZE];
+		ReadBlock(pINodeEntryFichier.Block[0],newDataBlockDirEntry);
+		DirEntry * pDEFichier = (DirEntry*)newDataBlockDirEntry;
 		pDEFichier[1].iNode=noInodeRepDestination;
 		WriteBlock(pINodeEntryFichier.Block[0],(char *)pDEFichier);
 		iNodeEntryRepDestination[noInodeRepDestination%NUM_INODE_PER_BLOCK].iNodeStat.st_nlink++;
