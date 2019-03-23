@@ -131,7 +131,7 @@ int saisieBloc(UINT16 BlockNum)
 	char BlockFreeBitmap[BLOCK_SIZE];
 	ReadBlock(FREE_BLOCK_BITMAP,BlockFreeBitmap);
 	BlockFreeBitmap[BlockNum]=0;
-	printf("Saisie bloc %d \n",BlockNum);
+	printf("GLOFS: Saisie bloc %d \n",BlockNum);
 	WriteBlock(FREE_BLOCK_BITMAP,BlockFreeBitmap);
 	return 1;
 }
@@ -141,7 +141,7 @@ int SaisieFreeInode(UINT16 InodeNum)
 	char InodeFreeBitmap[BLOCK_SIZE];
 	ReadBlock(FREE_INODE_BITMAP,InodeFreeBitmap);
 	InodeFreeBitmap[InodeNum]=0;
-	printf("Saisie i-node %d \n",InodeNum);
+	printf("GLOFS: Saisie i-node %d \n",InodeNum);
 	WriteBlock(FREE_INODE_BITMAP,InodeFreeBitmap);
 	return 1;
 }
@@ -151,7 +151,7 @@ void LibererBloc(UINT16 BlockNum)
 	char BlockFreeBitmap[BLOCK_SIZE];
 	ReadBlock(FREE_BLOCK_BITMAP,BlockFreeBitmap);
 	BlockFreeBitmap[BlockNum]=1;
-	printf("Relache bloc %d \n",BlockNum);
+	printf("GLOFS: Relache bloc %d \n",BlockNum);
 	WriteBlock(FREE_BLOCK_BITMAP,BlockFreeBitmap);
 }
 
@@ -160,7 +160,7 @@ int LibererInode(UINT16 InodeNum)
 	char InodeFreeBitmap[BLOCK_SIZE];
 	ReadBlock(FREE_INODE_BITMAP,InodeFreeBitmap);
 	InodeFreeBitmap[InodeNum]=1;
-	printf("Relache i-node %d \n",InodeNum);
+	printf("GLOFS: Relache i-node %d \n",InodeNum);
 	WriteBlock(FREE_INODE_BITMAP,InodeFreeBitmap);
 }
 		 
