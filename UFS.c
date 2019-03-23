@@ -115,6 +115,21 @@ int getDirBlockFromBlockNumber(const UINT16 blockNumber, DirEntry** outDirTable)
 	}
 }
 
+int writeDirBlockToBlockNumber(const UINT16 blockNumber, DirEntry** dirTable)
+{
+	if ((blockNumber > MAX_BLOCK_INODE) && (blockNumber <= N_BLOCK_ON_DISK))
+	{
+		if (WriteBlock(blockNumber, (char*)(dirTable)) > 0)
+		{
+			return 0;
+		} else {
+			return -1; //Bad read
+		}
+	} else {
+		return -2; // Out of bound blockNumber.
+	}
+}
+
 /* Cette contion prendre en paramètre un numéro de block
    Elle retourne:
        -1 Si problème de lecture du block.
@@ -135,7 +150,35 @@ int getINodeBlockFromBlockNumber(const UINT16 blockNumber, iNodeEntry** outINode
 	} else {
 		return -2; // Out of bound blockNumber.
 	}
-	
+}
+
+int getINodeBlockNumberFromINodeNumber(const UINT16 inodeNumber) {
+	return  BASE_BLOCK_INODE + (inodeNumber / NUM_INODE_PER_BLOCK);
+}
+
+int writeINodeEntry(const iNodeEntry* iNodeEntryToSave)
+{
+	int blockNumber = getINodeBlockNumberFromINodeNumber(iNodeEntryToSave->iNodeStat.st_ino);
+	if ((blockNumber >= BASE_BLOCK_INODE) && (blockNumber <= MAX_BLOCK_INODE))
+	{
+		iNodeEntry* iNodeTable;
+		if (getINodeBlockFromBlockNumber(blockNumber, &iNodeTable) < 0)
+		{
+			return -1; //Bad Read
+		}
+
+		memcpy(&iNodeTable[iNodeEntryToSave->iNodeStat.st_ino % NUM_INODE_PER_BLOCK], iNodeEntryToSave, sizeof(iNodeEntry));
+
+
+		if (WriteBlock(blockNumber, (char*)iNodeTable) > 0) {
+			return 0;
+		} else {
+			return -1; //Bad read
+		}
+	} else {
+		return -2; // Out of bound blockNumber.
+	}
+	return -1;
 }
 
 /* Cette fonction prendre en paramètre un numéro d'i-node.
@@ -177,11 +220,11 @@ int getINodeEntryFromINodeNumber(const UINT16 iNodeNumber, iNodeEntry* outiNodeE
 			break;//Continue
 	}
 	
-	char iNodeBlockNumber = iNodeNumber / NUM_INODE_PER_BLOCK;
-	char iNodeInBlockOffset = iNodeNumber % NUM_INODE_PER_BLOCK;
+	char iNodeBlockNumber = getINodeBlockNumberFromINodeNumber(iNodeNumber);
+	char iNodeInBlockOffset = iNodeNumber% NUM_INODE_PER_BLOCK;
 
 	iNodeEntry* iNodeTable;
-	switch (getINodeBlockFromBlockNumber(BASE_BLOCK_INODE + iNodeBlockNumber, &iNodeTable))
+	switch (getINodeBlockFromBlockNumber(iNodeBlockNumber, &iNodeTable))
 	{
 		case -2:
 			return -1; // Invalid iNode
@@ -200,7 +243,7 @@ int getINodeEntryFromINodeNumber(const UINT16 iNodeNumber, iNodeEntry* outiNodeE
        -2 si problème de lecture du bloc.
        -1 si le fichier n'Existe pas
         0 Si le fichier est trouvé et outINodeNumber contient l'inode de ce fichier.*/
-int getFileInodeFromDirectoryINode(const iNodeEntry* parentInode, const char* fileString, int* outINodeNumber)
+int getFileInodeNumberFromDirectoryINode(const iNodeEntry* parentInode, const char* fileString, int* outINodeNumber)
 {
 	DirEntry* dirEntryTable;
 	switch (getDirBlockFromBlockNumber(parentInode->Block[0], &dirEntryTable))
@@ -211,7 +254,10 @@ int getFileInodeFromDirectoryINode(const iNodeEntry* parentInode, const char* fi
 		default:
 			break;//Continue
 	}
-	for (size_t i = 0; i < NumberofDirEntry(BLOCK_SIZE); i++)
+
+	int numberOfChildren = NumberofDirEntry(parentInode->iNodeStat.st_size);
+
+	for (size_t i = 0; i < numberOfChildren; i++)
 	{
 		if (strcmp(dirEntryTable[i].Filename, fileString) ==0) {
 			*outINodeNumber = dirEntryTable[i].iNode;
@@ -270,7 +316,7 @@ int getINodeNumberOfPath(const char *pPath, int* iNodeNumber){
 			break;//Continue
 	}
 
-	switch(getFileInodeFromDirectoryINode(&parentInode, fileString, iNodeNumber))
+	switch(getFileInodeNumberFromDirectoryINode(&parentInode, fileString, iNodeNumber))
 	{
 		case 0:
 			return 0;
@@ -281,6 +327,82 @@ int getINodeNumberOfPath(const char *pPath, int* iNodeNumber){
 
 	}
 }
+
+/* Cette fonction prendre un numéro d'inode en paramètre et va indiquer qu'il est réservé.
+   Cette fonction retourne 
+    -1 s'il y a un problème
+     1 sinon. */
+int TakeINode(int InodeNumber)
+{
+	char InodeFreeBitmap[BLOCK_SIZE];
+	if (ReadBlock(FREE_INODE_BITMAP, InodeFreeBitmap) < 1) {
+		return -1;
+	}
+	InodeFreeBitmap[InodeNumber]=0; //This inode is now taken
+	if (WriteBlock(FREE_INODE_BITMAP, InodeFreeBitmap) < 1) {
+		return -1;
+	};
+	printf("Saisie i-node %d \n", InodeNumber);
+	return 1;
+}
+
+/* Cette fonction prendre un numéro d'inode en paramètre et va indiquer qu'il est libre.
+   Cette fonction retourne 
+    -1 s'il y a un problème
+     1 sinon. */
+int FreeINode(int InodeNumber)
+{
+	char InodeFreeBitmap[BLOCK_SIZE];
+	ReadBlock(FREE_INODE_BITMAP, InodeFreeBitmap);
+	if (ReadBlock(FREE_INODE_BITMAP, InodeFreeBitmap) < 1) {
+		return -1;
+	}
+	InodeFreeBitmap[InodeNumber]=1; //This inode is now free
+	if (WriteBlock(FREE_INODE_BITMAP, InodeFreeBitmap) < 1) {
+		return -1;
+	};
+	printf("Relache i-node %d \n", InodeNumber);
+	return 1;
+}
+
+/* Cette fonction prendre un numéro de bloc en paramètre et va indiquer qu'il est réservé.
+   Cette fonction retourne 
+    -1 s'il y a un problème
+     1 sinon. */
+int TakeBloc(UINT16 BlockNum)
+{
+	char BlockFreeBitmap[BLOCK_SIZE];
+	ReadBlock(FREE_BLOCK_BITMAP, BlockFreeBitmap);
+	if (ReadBlock(FREE_BLOCK_BITMAP, BlockFreeBitmap) < 1) {
+		return -1;
+	}
+	BlockFreeBitmap[BlockNum]=0; //Bloc is now taken
+	if (WriteBlock(FREE_BLOCK_BITMAP, BlockFreeBitmap) < 1) {
+		return -1;
+	}
+	printf("Saisie bloc %d \n",BlockNum);
+	return 1;
+}
+
+/* Cette fonction prendre un numéro de bloc en paramètre et va indiquer qu'il est libre.
+   Cette fonction retourne 
+    -1 s'il y a un problème
+     1 sinon. */
+int FreeBloc(UINT16 BlockNum)
+{
+	char BlockFreeBitmap[BLOCK_SIZE];
+	ReadBlock(FREE_BLOCK_BITMAP, BlockFreeBitmap);
+	if (ReadBlock(FREE_BLOCK_BITMAP, BlockFreeBitmap) < 1) {
+		return -1;
+	}
+	BlockFreeBitmap[BlockNum] = 1; //Bloc is now free
+	if (WriteBlock(FREE_BLOCK_BITMAP, BlockFreeBitmap) < 1) {
+		return -1;
+	}
+	printf("Relache bloc %d \n", BlockNum);
+	return 1;
+}
+
 /*private var*/
 int _reserveNewINodeNumber_nextCheckPosition = 2;
 
@@ -291,16 +413,20 @@ int ReserveNewINodeNumber(){
 	ReadBlock(FREE_INODE_BITMAP, iNodeBitmap);
 	for(int iNodeOffset = 0; iNodeOffset < N_INODE_ON_DISK; iNodeOffset++) {
 		int checkPosition = _reserveNewINodeNumber_nextCheckPosition + iNodeOffset;
-		if (checkPosition == N_BLOCK_PER_INODE) {
+		if (checkPosition == N_INODE_ON_DISK) {
 			// Reinitialise position if going over the limit. (Round Robin)
 			checkPosition = 0;
 		} 
 
 		if (iNodeBitmap[checkPosition] == 1) {
-			iNodeBitmap[checkPosition] = 0; // Reserve this iNode number.
+			// Reserve this block inode.
+			if (TakeINode(checkPosition) != 1)
+			{
+				return -2; //Problem setting the value.
+			}
 			// Memorize where to check next time;
 			_reserveNewINodeNumber_nextCheckPosition = checkPosition + 1;
-			return _reserveNewINodeNumber_nextCheckPosition;
+			return checkPosition;
 		}
 	}
 	return -1;
@@ -310,7 +436,9 @@ int ReserveNewINodeNumber(){
 int _reserveNewINodeBlock_nextCheckPosition = 2;
 
 /* Cette fonction réserve un retourne un numéro d'iNode libre.
-	Retourne -1 si aucun inode libre. */
+   Retourne 
+     -1 si aucun inode libre.
+     -1 si probleme de reservation */
 int ReserveNewBlockNumber(){
 	char blockBitmap[BLOCK_SIZE];
 	ReadBlock(FREE_BLOCK_BITMAP, blockBitmap);
@@ -322,10 +450,14 @@ int ReserveNewBlockNumber(){
 		} 
 
 		if (blockBitmap[checkPosition] == 1) {
-			blockBitmap[checkPosition] = 0; // Reserve this block number.
+			// Reserve this block number.
+			if (TakeBloc(checkPosition) != 1)
+			{
+				return -2; //Problem setting the value.
+			}
 			// Memorize where to check next time;
 			_reserveNewINodeBlock_nextCheckPosition = checkPosition + 1;
-			return _reserveNewINodeBlock_nextCheckPosition;
+			return checkPosition;
 		}
 	}
 	return -1;
@@ -344,6 +476,13 @@ int AddFileInDir(iNodeEntry* dirInode, iNodeEntry* fileInode, const char* endFil
 
 	dirInode->iNodeStat.st_size += sizeof(DirEntry);
 	fileInode->iNodeStat.st_nlink ++;
+
+	// Écrire les données dans le block du répertoire.
+	if (writeDirBlockToBlockNumber(dirInode->Block[0], &dirEntryTable) != 0)
+	{
+		return -1; // Problem writing block.
+	};
+
 	return 0;
 }
 
@@ -390,7 +529,7 @@ int bd_stat(const char *pFilename, gstat *pStat) {
 int bd_create(const char *pFilename) {
 	// Check if path valid
 	char endFileName[FILENAME_SIZE];
-	switch(GetDirFromPath(pFilename, endFileName))
+	switch(GetFilenameFromPath(pFilename, endFileName))
 	{
 		case 0: 
 			return -1;
@@ -424,35 +563,45 @@ int bd_create(const char *pFilename) {
 	}
 	// Check if file exists.
 	int fileInodeNumber;
-	if(getFileInodeFromDirectoryINode(&parentDirectoryINodeEntry, endFileName, &fileInodeNumber) == -1)
+	if(getFileInodeNumberFromDirectoryINode(&parentDirectoryINodeEntry, endFileName, &fileInodeNumber) != -1)
 	{
 		return -2; //File already exists
 	}
 
 	// Get new i-Node number
-	int newInodeNumber = ReserveNewINodeNumber();
-	if (newInodeNumber == -1) {
+	fileInodeNumber = ReserveNewINodeNumber();
+	if (fileInodeNumber == -1) {
 		return -1; // Can't add no more files.
 	}
 
 	// Get it's i-Node entry
 	iNodeEntry fileInodeEntry;
-	if (getINodeEntryFromINodeNumber(newInodeNumber, &fileInodeEntry) != 0) {
+	if (getINodeEntryFromINodeNumber(fileInodeNumber, &fileInodeEntry) != 0) {
 		return -1; // Error getting the iNodeEntry
 	}
 
 	// Initialiser un fichier complètement vide.
-	fileInodeEntry.iNodeStat.st_ino = newInodeNumber;
+	fileInodeEntry.iNodeStat.st_ino = fileInodeNumber;
 	fileInodeEntry.iNodeStat.st_nlink = 0;
 	fileInodeEntry.iNodeStat.st_size = 0;
 	fileInodeEntry.iNodeStat.st_blocks = 0;
 	fileInodeEntry.iNodeStat.st_mode = 0;
 	fileInodeEntry.iNodeStat.st_mode |= G_IFREG;
 
+	iNodeEntry test;
+	getINodeEntryFromINodeNumber(1, &test);
 	if (AddFileInDir(&parentDirectoryINodeEntry, &fileInodeEntry, endFileName) != 0)
 	{
 		return -1; // Error setting the value.
 	}
+	getINodeEntryFromINodeNumber(1, &test);
+
+	writeINodeEntry(&parentDirectoryINodeEntry);
+
+	getINodeEntryFromINodeNumber(1, &test);
+
+	writeINodeEntry(&fileInodeEntry);
+	
 
 	return 0;
 }
