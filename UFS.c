@@ -131,7 +131,7 @@ int saisieBloc(UINT16 BlockNum)
 	char BlockFreeBitmap[BLOCK_SIZE];
 	ReadBlock(FREE_BLOCK_BITMAP,BlockFreeBitmap);
 	BlockFreeBitmap[BlockNum]=0;
-	printf("Saisie block %d \n",BlockNum);
+	printf("Saisie bloc %d \n",BlockNum);
 	WriteBlock(FREE_BLOCK_BITMAP,BlockFreeBitmap);
 	return 1;
 }
@@ -151,7 +151,7 @@ void LibererBloc(UINT16 BlockNum)
 	char BlockFreeBitmap[BLOCK_SIZE];
 	ReadBlock(FREE_BLOCK_BITMAP,BlockFreeBitmap);
 	BlockFreeBitmap[BlockNum]=1;
-	printf("Relache block %d \n",BlockNum);
+	printf("Relache bloc %d \n",BlockNum);
 	WriteBlock(FREE_BLOCK_BITMAP,BlockFreeBitmap);
 }
 
@@ -452,7 +452,7 @@ int bd_write(const char *pFilename, const char *buffer, int offset, int numbytes
 	}
 	if (offset>pINodeEntry.iNodeStat.st_size) 
 	{
-		printf("L'offset est trop grand! \n");
+		printf("L'offset est trop grand pour %s!\n", maTab[j-1]);
 		return -3;
 	}
 	if (offset>=255) 
