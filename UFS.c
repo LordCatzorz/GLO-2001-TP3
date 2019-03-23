@@ -1374,7 +1374,7 @@ int bd_fct_perso(const char* pDirName){ //ajuster aussi les paramètres
 					solved = 1;
 				}
 			}
-			if (solved == 0 && (strlen(pDRepertoireACopier[i].Filename > strlen(pDRepertoireACopier[j].Filename)))) {
+			if (solved == 0 && (strlen(pDRepertoireACopier[i].Filename) > strlen(pDRepertoireACopier[j].Filename))) {
 				// Fichier même texte, mais un plus long.
 				tempEntry = pDRepertoireACopier[j];
 				pDRepertoireACopier[j] = pDRepertoireACopier[i];
