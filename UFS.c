@@ -594,6 +594,7 @@ int bd_mkdir(const char *pDirName) {
 	pINENewInode[noInodeLibre%NUM_INODE_PER_BLOCK].iNodeStat.st_nlink=2;
 	pINENewInode[noInodeLibre%NUM_INODE_PER_BLOCK].iNodeStat.st_size=2*sizeof(DirEntry);
 	pINENewInode[noInodeLibre%NUM_INODE_PER_BLOCK].iNodeStat.st_blocks=1;
+    pINENewInode[noInodeLibre%NUM_INODE_PER_BLOCK].Block[0] = noBlocLibreRepertoire;
 	WriteBlock(BASE_BLOCK_INODE+(noInodeLibre/NUM_INODE_PER_BLOCK),(char *)pINENewInode);																														
 	return 0;
 
