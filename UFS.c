@@ -714,7 +714,7 @@ int bd_hardlink(const char *pPathExistant, const char *pPathNouveauLien) {
 	iNodeEntry *pINModification = (iNodeEntry *) InodesBlockEntry;
 	pINModification[pINodeEntryPathExistant.iNodeStat.st_ino%NUM_INODE_PER_BLOCK]=pINodeEntryPathExistant;
 	WriteBlock(BASE_BLOCK_INODE+(pINodeEntryPathExistant.iNodeStat.st_ino/NUM_INODE_PER_BLOCK),(char *)pINModification);
-	return 1;
+	return 0;
 }
 
 int bd_unlink(const char *pFilename) {
@@ -883,7 +883,7 @@ int bd_rmdir(const char *pFilename) {
 
 	LibererBloc(pINodeEntry.Block[0]);
 	LibererInode(pINodeEntry.iNodeStat.st_ino);
-	return 1;
+	return 0;
 }
 
 int bd_rename(const char *pFilename, const char *pDestFilename) {
