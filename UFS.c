@@ -1340,7 +1340,7 @@ int bd_fct_perso(const char* pDirName){ //ajuster aussi les paramètres
 			printf("Le dossier %s est inexistant! \n",pDirName);
 			return -1;
 		} else if(pINodeEntry.iNodeStat.st_mode & G_IFREG) {
-			printf("%s n'est pas uin dossier! \n",pDirName);
+			printf("%s n'est pas un dossier! \n",pDirName);
 		}
 	}
 	ReadBlock(pINodeEntry.Block[0],DataBlockDirEntry);
