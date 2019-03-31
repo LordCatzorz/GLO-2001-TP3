@@ -494,6 +494,33 @@ int AddFileInDir(iNodeEntry* dirInode, iNodeEntry* fileInode, const char* endFil
 	return 0;
 }
 
+/*
+	Cette fonction prend un chemin en parametre, et retourne
+	ce chemin divisé en "cheminParent" et "fichier".
+	Retourne
+		-1 si le chemin n''est pas valide
+		1  sinon
+*/
+int splitPath(const char* pPath, char* pParentPath, char* pFile) {
+	
+	switch(GetFilenameFromPath(pPath, pFile))
+	{
+		case 0: 
+			return -1;
+		case 1:
+			break; //continue
+	}
+	switch(GetDirFromPath(pPath, pParentPath))
+	{
+		case 0: 
+			return -1;
+		case 1:
+			break; //continue
+	}
+
+	return 1;
+}
+
 
 /* ----------------------------------------------------------------------------------------
 	C'est votre partie, bon succès!
@@ -537,22 +564,17 @@ int bd_stat(const char *pFilename, gstat *pStat) {
 int bd_create(const char *pFilename) {
 	// Check if path valid
 	char endFileName[FILENAME_SIZE];
-	switch(GetFilenameFromPath(pFilename, endFileName))
-	{
-		case 0: 
-			return -1;
-		case 1:
-			break; //continue
-	}
-
 	char folder[strlen(pFilename)];
-	switch(GetDirFromPath(pFilename, folder))
+
+	switch (splitPath(pFilename, folder, endFileName))
 	{
-		case 0: 
+		case 0:
+			break;
+		case -1:
 			return -1;
-		case 1:
-			break; //continue
+		
 	}
+	
 	// Check if folder exists.
 	int parentDirectoryINodeNumber;
 	switch (getINodeNumberOfPath(folder, &parentDirectoryINodeNumber))
@@ -587,7 +609,7 @@ int bd_create(const char *pFilename) {
 	if (getINodeEntryFromINodeNumber(fileInodeNumber, &fileInodeEntry) != 0) {
 		return -1; // Error getting the iNodeEntry
 	}
-	
+
 	// Initialiser un fichier complètement vide.
 	fileInodeEntry.iNodeStat.st_ino = fileInodeNumber;
 	fileInodeEntry.iNodeStat.st_nlink = 0;
