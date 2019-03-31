@@ -97,15 +97,15 @@ void printiNode(iNodeEntry iNode) {
    Elle retourne:
      -1 Si problème de lecture du bloc.
      -2 Si le numéro de bloc est hors des valeurs possibles.
-      0 Si ok et retourne un tableau de dirEntry dans le paramètre outDirTable.*/
+      0 Si ok et retourne un tableau de dirEntry dans le paramètre outDirTable alloué à l'adresse du pointé par le pointeur. (Need free)*/
 int getDirBlockFromBlockNumber(const UINT16 blockNumber, DirEntry** outDirTable)
 {
 	if ((blockNumber > MAX_BLOCK_INODE) && (blockNumber <= N_BLOCK_ON_DISK))
 	{
 		char dataRawBlock[BLOCK_SIZE];
-		if (ReadBlock(blockNumber, dataRawBlock) > 0)
-		{
-			*outDirTable = (DirEntry*)dataRawBlock;
+		if (ReadBlock(blockNumber, dataRawBlock) > 0) {
+			*outDirTable = (DirEntry*)malloc(BLOCK_SIZE);
+			memcpy(*outDirTable, dataRawBlock, BLOCK_SIZE);
 			return 0;
 		} else {
 			return -1; //Bad read
@@ -115,7 +115,7 @@ int getDirBlockFromBlockNumber(const UINT16 blockNumber, DirEntry** outDirTable)
 	}
 }
 
-int writeDirBlockToBlockNumber(const UINT16 blockNumber, DirEntry** dirTable)
+int writeDirBlockToBlockNumber(const UINT16 blockNumber, DirEntry* dirTable)
 {
 	if ((blockNumber > MAX_BLOCK_INODE) && (blockNumber <= N_BLOCK_ON_DISK))
 	{
@@ -134,7 +134,7 @@ int writeDirBlockToBlockNumber(const UINT16 blockNumber, DirEntry** dirTable)
    Elle retourne:
        -1 Si problème de lecture du block.
        -2 Si le blockNumber est hors de l'interle
-        0 Si ok et retourne un tableau d'InodeEntry dans le paramètre de sortie.*/
+        0 Si ok et retourne un tableau d'InodeEntry alloué à l'adresse du pointé par le pointeur. (Need free)*/
 int getINodeBlockFromBlockNumber(const UINT16 blockNumber, iNodeEntry** outINodeTable)
 {
 	if ((blockNumber >= BASE_BLOCK_INODE) && (blockNumber <= MAX_BLOCK_INODE))
@@ -142,7 +142,8 @@ int getINodeBlockFromBlockNumber(const UINT16 blockNumber, iNodeEntry** outINode
 		char iNodeRawBlock[BLOCK_SIZE];
 		if (ReadBlock(blockNumber, iNodeRawBlock) > 0)
 		{
-			*outINodeTable = (iNodeEntry*)iNodeRawBlock;
+			*outINodeTable = (iNodeEntry*)malloc(BLOCK_SIZE);
+			memcpy(*outINodeTable, iNodeRawBlock, BLOCK_SIZE);
 			return 0;
 		} else {
 			return -1; //Bad read
@@ -171,8 +172,10 @@ int writeINodeEntry(const iNodeEntry* iNodeEntryToSave)
 
 
 		if (WriteBlock(blockNumber, (char*)iNodeTable) > 0) {
+			free(iNodeTable);
 			return 0;
 		} else {
+			free(iNodeTable);
 			return -1; //Bad read
 		}
 	} else {
@@ -233,7 +236,8 @@ int getINodeEntryFromINodeNumber(const UINT16 iNodeNumber, iNodeEntry* outiNodeE
 		default:
 			break;//Continue
 	}
-	*outiNodeEntry = iNodeTable[iNodeInBlockOffset];
+	memcpy(outiNodeEntry,&(iNodeTable[iNodeInBlockOffset]), sizeof(iNodeEntry));
+	free(iNodeTable);
 	return 0;
 }
 
@@ -261,9 +265,11 @@ int getFileInodeNumberFromDirectoryINode(const iNodeEntry* parentInode, const ch
 	{
 		if (strcmp(dirEntryTable[i].Filename, fileString) ==0) {
 			*outINodeNumber = dirEntryTable[i].iNode;
+			free(dirEntryTable);
 			return 0;
 		}
 	}
+	free(dirEntryTable);
 	return -1;
 }
 
@@ -478,11 +484,13 @@ int AddFileInDir(iNodeEntry* dirInode, iNodeEntry* fileInode, const char* endFil
 	fileInode->iNodeStat.st_nlink ++;
 
 	// Écrire les données dans le block du répertoire.
-	if (writeDirBlockToBlockNumber(dirInode->Block[0], &dirEntryTable) != 0)
+	if (writeDirBlockToBlockNumber(dirInode->Block[0], dirEntryTable) != 0)
 	{
+		free(dirEntryTable);
 		return -1; // Problem writing block.
 	};
 
+	free(dirEntryTable);
 	return 0;
 }
 
@@ -579,7 +587,7 @@ int bd_create(const char *pFilename) {
 	if (getINodeEntryFromINodeNumber(fileInodeNumber, &fileInodeEntry) != 0) {
 		return -1; // Error getting the iNodeEntry
 	}
-
+	
 	// Initialiser un fichier complètement vide.
 	fileInodeEntry.iNodeStat.st_ino = fileInodeNumber;
 	fileInodeEntry.iNodeStat.st_nlink = 0;
@@ -588,21 +596,14 @@ int bd_create(const char *pFilename) {
 	fileInodeEntry.iNodeStat.st_mode = 0;
 	fileInodeEntry.iNodeStat.st_mode |= G_IFREG;
 
-	iNodeEntry test;
-	getINodeEntryFromINodeNumber(1, &test);
 	if (AddFileInDir(&parentDirectoryINodeEntry, &fileInodeEntry, endFileName) != 0)
 	{
 		return -1; // Error setting the value.
 	}
-	getINodeEntryFromINodeNumber(1, &test);
 
 	writeINodeEntry(&parentDirectoryINodeEntry);
-
-	getINodeEntryFromINodeNumber(1, &test);
-
 	writeINodeEntry(&fileInodeEntry);
 	
-
 	return 0;
 }
 
