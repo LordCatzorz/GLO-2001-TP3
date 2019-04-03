@@ -676,6 +676,7 @@ int bd_read(const char *pFilename, char *buffer, int offset, int numbytes) {
 	switch (getINodeNumberOfPath(pFilename, &inodeNumber))
 	{
 		case -1 :
+			printf("Le fichier %s est inexistant!", pFilename);
 			return -1; //Invalid name
 		case 0:
 			break; //continue
@@ -689,6 +690,7 @@ int bd_read(const char *pFilename, char *buffer, int offset, int numbytes) {
 
 	if(InodeEntryIsDirectory(&fileNodeEntry) == 0)
 	{
+		printf("Le fichier %s est un répertoire!", pFilename);
 		return -2; //Path is directory
 	}
 
