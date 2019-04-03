@@ -247,7 +247,7 @@ int getINodeEntryFromINodeNumber(const UINT16 iNodeNumber, iNodeEntry* outiNodeE
        -2 si problème de lecture du bloc.
        -1 si le fichier n'Existe pas
         0 Si le fichier est trouvé et outINodeNumber contient l'inode de ce fichier.*/
-int getFileInodeNumberFromDirectoryINode(const iNodeEntry* parentInode, const char* fileString, int* outINodeNumber)
+int getFileInodeNumberFromDirectoryINode(const iNodeEntry* parentInode, const char* fileString, UINT16* outINodeNumber)
 {
 	DirEntry* dirEntryTable;
 	switch (getDirBlockFromBlockNumber(parentInode->Block[0], &dirEntryTable))
@@ -278,7 +278,7 @@ int getFileInodeNumberFromDirectoryINode(const iNodeEntry* parentInode, const ch
        0 Si le iNode a bien été trouvé, et affecte ce numéro d'inode dans le paramètre iNodeNumber
       -1 Si le chemin est invalide.
 */
-int getINodeNumberOfPath(const char *pPath, int* iNodeNumber){
+int getINodeNumberOfPath(const char *pPath, UINT16* iNodeNumber){
 	if ((strlen(pPath)>0) && (strcmp(pPath, "/")==0)){
 		*iNodeNumber=ROOT_INODE; //Is Root
 		return 0;
@@ -338,7 +338,7 @@ int getINodeNumberOfPath(const char *pPath, int* iNodeNumber){
    Cette fonction retourne 
     -1 s'il y a un problème
      1 sinon. */
-int TakeINode(int InodeNumber)
+int TakeINode(UINT16 InodeNumber)
 {
 	char InodeFreeBitmap[BLOCK_SIZE];
 	if (ReadBlock(FREE_INODE_BITMAP, InodeFreeBitmap) < 1) {
@@ -356,7 +356,7 @@ int TakeINode(int InodeNumber)
    Cette fonction retourne 
     -1 s'il y a un problème
      1 sinon. */
-int FreeINode(int InodeNumber)
+int FreeINode(UINT16 InodeNumber)
 {
 	char InodeFreeBitmap[BLOCK_SIZE];
 	ReadBlock(FREE_INODE_BITMAP, InodeFreeBitmap);
@@ -410,15 +410,15 @@ int FreeBloc(UINT16 BlockNum)
 }
 
 /*private var*/
-int _reserveNewINodeNumber_nextCheckPosition = 2;
+UINT16 _reserveNewINodeNumber_nextCheckPosition = 2;
 
 /* Cette fonction réserve un retourne un numéro d'iNode libre.
 	Retourne -1 si aucun inode libre. */
-int ReserveNewINodeNumber(){
+UINT16 ReserveNewINodeNumber(){
 	char iNodeBitmap[BLOCK_SIZE];
 	ReadBlock(FREE_INODE_BITMAP, iNodeBitmap);
-	for(int iNodeOffset = 0; iNodeOffset < N_INODE_ON_DISK; iNodeOffset++) {
-		int checkPosition = _reserveNewINodeNumber_nextCheckPosition + iNodeOffset;
+	for(UINT16 iNodeOffset = 0; iNodeOffset < N_INODE_ON_DISK; iNodeOffset++) {
+		UINT16 checkPosition = _reserveNewINodeNumber_nextCheckPosition + iNodeOffset;
 		if (checkPosition == N_INODE_ON_DISK) {
 			// Reinitialise position if going over the limit. (Round Robin)
 			checkPosition = 0;
@@ -439,17 +439,17 @@ int ReserveNewINodeNumber(){
 }
 
 /*private var*/
-int _reserveNewINodeBlock_nextCheckPosition = 2;
+UINT16 _reserveNewINodeBlock_nextCheckPosition = 2;
 
 /* Cette fonction réserve un retourne un numéro d'iNode libre.
    Retourne 
      -1 si aucun inode libre.
      -1 si probleme de reservation */
-int ReserveNewBlockNumber(){
+UINT16 ReserveNewBlockNumber(){
 	char blockBitmap[BLOCK_SIZE];
 	ReadBlock(FREE_BLOCK_BITMAP, blockBitmap);
-	for(int blockOffset = 0; blockOffset < N_BLOCK_ON_DISK; blockOffset++) {
-		int checkPosition = _reserveNewINodeBlock_nextCheckPosition + blockOffset;
+	for(UINT16 blockOffset = 0; blockOffset < N_BLOCK_ON_DISK; blockOffset++) {
+		UINT16 checkPosition = _reserveNewINodeBlock_nextCheckPosition + blockOffset;
 		if (checkPosition == N_BLOCK_ON_DISK) {
 			// Reinitialise position if going over the limit. (Round Robin)
 			checkPosition = 0;
@@ -469,6 +469,16 @@ int ReserveNewBlockNumber(){
 	return -1;
 }
 
+
+/* cette fnction prend un iNode de répertoire, un iNode de fichier et un nom de fichier.
+	Elle va modifier la mémoire associé au iNode de répertoire pour ajouter ce nouveau fichier.
+	Elle va aussi modifier les pointeurs d'inode en paramètre, mais ne va pas les enregistrer.
+	Elle retourne
+		-1 si problème de lecture ou d'écriture.
+		0  sinon.
+
+*/
+
 int AddFileInDir(iNodeEntry* dirInode, iNodeEntry* fileInode, const char* endFileName) {
 	DirEntry* dirEntryTable;
 	if (getDirBlockFromBlockNumber(dirInode->Block[0], &dirEntryTable) != 0)
@@ -476,7 +486,7 @@ int AddFileInDir(iNodeEntry* dirInode, iNodeEntry* fileInode, const char* endFil
 		return -1; // Problem reading block.
 	}
 	
-	int position = NumberofDirEntry(dirInode->iNodeStat.st_size);
+	UINT16 position = NumberofDirEntry(dirInode->iNodeStat.st_size);
 	dirEntryTable[position].iNode = fileInode->iNodeStat.st_ino;
 	strcpy(dirEntryTable[position].Filename, endFileName);
 
@@ -521,6 +531,38 @@ int splitPath(const char* pPath, char* pParentPath, char* pFile) {
 	return 1;
 }
 
+/* Cette fonction prendre un iNodeEntry en paramètre.
+	Elle retourne
+		0 si c'est un fichier.
+	 	-1 sinon.*/
+int InodeEntryIsFile(iNodeEntry* node)
+{
+	if (node->iNodeStat.st_mode & G_IFREG)
+	{
+		return 0;
+	} 
+	else 
+	{
+		return -1;
+	}
+}
+
+/* Cette fonction prendre un iNodeEntry en paramètre.
+	Elle retourne
+		0 si c'est un répertoire.
+	 	-1 sinon.*/
+int InodeEntryIsDirectory(iNodeEntry* node)
+{
+	if (node->iNodeStat.st_mode & G_IFDIR)
+	{
+		return 0;
+	} 
+	else 
+	{
+		return -1;
+	}
+}
+
 
 /* ----------------------------------------------------------------------------------------
 	C'est votre partie, bon succès!
@@ -528,7 +570,7 @@ int splitPath(const char* pPath, char* pParentPath, char* pFile) {
    ---------------------------------------------------------------------------------------- */
 
 int bd_countusedblocks(void) {
-	int usedblock = 0;
+	UINT16 usedblock = 0;
 	char bitmapFreeBlock[BLOCK_SIZE];
 	ReadBlock(FREE_BLOCK_BITMAP, bitmapFreeBlock);
 	for(UINT16 i = 0; i < N_BLOCK_ON_DISK; i++)
@@ -539,7 +581,7 @@ int bd_countusedblocks(void) {
 }
 
 int bd_stat(const char *pFilename, gstat *pStat) {
-	int iNodeNumber = -1;
+	UINT16 iNodeNumber = -1;
 	switch (getINodeNumberOfPath(pFilename, &iNodeNumber))
 	{
 		case -1:
@@ -576,7 +618,7 @@ int bd_create(const char *pFilename) {
 	}
 	
 	// Check if folder exists.
-	int parentDirectoryINodeNumber;
+	UINT16 parentDirectoryINodeNumber;
 	switch (getINodeNumberOfPath(folder, &parentDirectoryINodeNumber))
 	{
 		case -1 :
@@ -592,7 +634,7 @@ int bd_create(const char *pFilename) {
 		return -1;
 	}
 	// Check if file exists.
-	int fileInodeNumber;
+	UINT16 fileInodeNumber;
 	if(getFileInodeNumberFromDirectoryINode(&parentDirectoryINodeEntry, endFileName, &fileInodeNumber) != -1)
 	{
 		return -2; //File already exists
@@ -630,7 +672,47 @@ int bd_create(const char *pFilename) {
 }
 
 int bd_read(const char *pFilename, char *buffer, int offset, int numbytes) {
-	return -1;
+	UINT16 inodeNumber;
+	switch (getINodeNumberOfPath(pFilename, &inodeNumber))
+	{
+		case -1 :
+			return -1; //Invalid name
+		case 0:
+			break; //continue
+	}
+
+	iNodeEntry fileNodeEntry;
+	if (getINodeEntryFromINodeNumber(inodeNumber, &fileNodeEntry) != 0)
+	{
+		return -1; //Internal error
+	}
+
+	if(InodeEntryIsDirectory(&fileNodeEntry) == 0)
+	{
+		return -2; //Path is directory
+	}
+
+	int nbOctetLu = 0;
+	const UINT16 nombreMaxBloc = fileNodeEntry.iNodeStat.st_blocks;
+	UINT16 blocEnCours = offset / BLOCK_SIZE;
+	
+	int nbOctetRestantAvantFin = min(fileNodeEntry.iNodeStat.st_size - offset, numbytes); // Ne pas lire plus que la taille du fichier
+	int nbOctetToRead = 0;
+
+	while(nbOctetRestantAvantFin > 0 && blocEnCours < nombreMaxBloc)
+	{
+		UINT16 innerBlockOffset =  blocEnCours == 0? offset % BLOCK_SIZE : 0 ;
+		char readblock[BLOCK_SIZE];
+		ReadBlock(fileNodeEntry.Block[blocEnCours], readblock);
+
+		nbOctetToRead = min(nbOctetRestantAvantFin, BLOCK_SIZE - innerBlockOffset);
+		memcpy(&(buffer[nbOctetLu]), &readblock[innerBlockOffset], nbOctetToRead);
+
+		nbOctetRestantAvantFin -= nbOctetToRead;
+		nbOctetLu += nbOctetToRead;
+	}
+
+	return nbOctetLu;
 }
 
 int bd_write(const char *pFilename, const char *buffer, int offset, int numbytes) { 
