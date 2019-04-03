@@ -676,7 +676,7 @@ int bd_read(const char *pFilename, char *buffer, int offset, int numbytes) {
 	switch (getINodeNumberOfPath(pFilename, &inodeNumber))
 	{
 		case -1 :
-			printf("Le fichier %s est inexistant!", pFilename);
+			printf("Le fichier %s est inexistant!\n", pFilename);
 			return -1; //Invalid name
 		case 0:
 			break; //continue
@@ -690,16 +690,16 @@ int bd_read(const char *pFilename, char *buffer, int offset, int numbytes) {
 
 	if(InodeEntryIsDirectory(&fileNodeEntry) == 0)
 	{
-		printf("Le fichier %s est un répertoire!", pFilename);
+		printf("Le fichier %s est un répertoire!\n", pFilename);
 		return -2; //Path is directory
 	}
 
-	int nbOctetLu = 0;
+	UINT16 nbOctetLu = 0;
 	const UINT16 nombreMaxBloc = fileNodeEntry.iNodeStat.st_blocks;
 	UINT16 blocEnCours = offset / BLOCK_SIZE;
 	
-	int nbOctetRestantAvantFin = min(fileNodeEntry.iNodeStat.st_size - offset, numbytes); // Ne pas lire plus que la taille du fichier
-	int nbOctetToRead = 0;
+	UINT16 nbOctetRestantAvantFin = min(fileNodeEntry.iNodeStat.st_size - offset, numbytes); // Ne pas lire plus que la taille du fichier
+	UINT16 nbOctetToRead = 0;
 
 	while(nbOctetRestantAvantFin > 0 && blocEnCours < nombreMaxBloc)
 	{
@@ -712,13 +712,84 @@ int bd_read(const char *pFilename, char *buffer, int offset, int numbytes) {
 
 		nbOctetRestantAvantFin -= nbOctetToRead;
 		nbOctetLu += nbOctetToRead;
+		blocEnCours++;
 	}
 
 	return nbOctetLu;
 }
 
 int bd_write(const char *pFilename, const char *buffer, int offset, int numbytes) { 
-	return -1;
+	UINT16 inodeNumber;
+	switch (getINodeNumberOfPath(pFilename, &inodeNumber))
+	{
+		case -1 :
+			printf("Le fichier %s est inexistant!\n", pFilename);
+			return -1; //Invalid name
+		case 0:
+			break; //continue
+	}
+
+	iNodeEntry fileNodeEntry;
+	if (getINodeEntryFromINodeNumber(inodeNumber, &fileNodeEntry) != 0)
+	{
+		return -1; //Internal error
+	}
+
+	if(InodeEntryIsDirectory(&fileNodeEntry) == 0)
+	{
+		printf("Le fichier %s est un répertoire!\n", pFilename);
+		return -2; //Path is directory
+	}
+
+	if (offset > fileNodeEntry.iNodeStat.st_size)
+	{
+		printf("L'offset demande est trop grand!\n");
+		return -3; // Offset plus grand que la taille du fichier.
+	}
+
+	if(offset > (N_BLOCK_PER_INODE * BLOCK_SIZE))
+	{
+		return -4; // Offset plus grand que la taille maximal d'un fichier.
+	}
+
+	if((offset + numbytes) > (N_BLOCK_PER_INODE * BLOCK_SIZE))
+	{
+		printf("Le fichier %s deviendra trop gros!\n", pFilename); // Taille final du fichier dépasse la limite du système. Continuer tout de même.
+	}
+
+	UINT16 blocEnCours = offset / BLOCK_SIZE;
+
+	UINT16 nbOctetRestantAvantFin = min((N_BLOCK_PER_INODE * BLOCK_SIZE)- offset, numbytes); // Ne pas lire plus que la taille du fichier
+	UINT16 nbOctetToRead = 0;
+	UINT16 nbOctetWritten = 0;
+
+	while(nbOctetRestantAvantFin > 0)
+	{
+		UINT16 innerBlockOffset =  nbOctetWritten == 0? offset % BLOCK_SIZE : 0 ;
+		nbOctetToRead = min(nbOctetRestantAvantFin, BLOCK_SIZE - innerBlockOffset);
+		char readblock[BLOCK_SIZE];
+		if (blocEnCours >= fileNodeEntry.iNodeStat.st_blocks) // Si on veut écrire sur un block qui n'existe pas.
+		{
+			fileNodeEntry.iNodeStat.st_blocks++;
+			fileNodeEntry.Block[blocEnCours] = ReserveNewBlockNumber();
+		} 
+		else // Sinon, si on va chercher le texte de l'ancien bloc.
+		{
+			ReadBlock(fileNodeEntry.Block[blocEnCours], readblock);
+		}
+		//Copier du buffer, puis enregistrer.
+		memcpy(&readblock[innerBlockOffset], &(buffer[nbOctetWritten]), nbOctetToRead);
+		WriteBlock(fileNodeEntry.Block[blocEnCours], readblock);
+		
+		nbOctetRestantAvantFin -= nbOctetToRead;
+		nbOctetWritten += nbOctetToRead;
+		blocEnCours++;
+	}
+	fileNodeEntry.iNodeStat.st_size = max(offset + nbOctetWritten, fileNodeEntry.iNodeStat.st_size); // Agrandir la stat de taille, si texte ajouté.
+
+	//Sauvegarder les nouvelles données du fichier.
+	writeINodeEntry(&fileNodeEntry);
+	return nbOctetWritten;
 }
 
 int bd_mkdir(const char *pDirName) {
