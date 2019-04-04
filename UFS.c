@@ -825,7 +825,42 @@ int bd_formatdisk() {
 }
 
 int bd_chmod(const char *pFilename, UINT16 st_mode) {
-	return -1;
+	UINT16 inodeNumber;
+	switch (getINodeNumberOfPath(pFilename, &inodeNumber))
+	{
+		case -1 :
+			return -1; //Invalid name
+		case 0:
+			break; //continue
+	}
+
+	iNodeEntry fileNodeEntry;
+	if (getINodeEntryFromINodeNumber(inodeNumber, &fileNodeEntry) != 0)
+	{
+		return -2; //Internal error
+	}
+	
+	// Réinitialiser les drapaux de permissions.
+	fileNodeEntry.iNodeStat.st_mode &= ~G_IRWXU;
+	fileNodeEntry.iNodeStat.st_mode &= ~G_IRUSR;
+	fileNodeEntry.iNodeStat.st_mode &= ~G_IWUSR;
+	fileNodeEntry.iNodeStat.st_mode &= ~G_IXUSR;
+	fileNodeEntry.iNodeStat.st_mode &= ~G_IRWXG;
+	fileNodeEntry.iNodeStat.st_mode &= ~G_IRGRP;
+	fileNodeEntry.iNodeStat.st_mode &= ~G_IWGRP;
+	fileNodeEntry.iNodeStat.st_mode &= ~G_IXGRP;
+
+	// Affecter les drapeaux des permissions.
+	fileNodeEntry.iNodeStat.st_mode |= (G_IRWXU & st_mode);
+	fileNodeEntry.iNodeStat.st_mode |= (G_IRUSR & st_mode);
+	fileNodeEntry.iNodeStat.st_mode |= (G_IWUSR & st_mode);
+	fileNodeEntry.iNodeStat.st_mode |= (G_IXUSR & st_mode);
+	fileNodeEntry.iNodeStat.st_mode |= (G_IRWXG & st_mode);
+	fileNodeEntry.iNodeStat.st_mode |= (G_IRGRP & st_mode);
+	fileNodeEntry.iNodeStat.st_mode |= (G_IWGRP & st_mode);
+	fileNodeEntry.iNodeStat.st_mode |= (G_IXGRP & st_mode);
+
+	writeINodeEntry(&fileNodeEntry);
 }
 
 int bd_fct_perso(){ //ajuster aussi les paramètres
