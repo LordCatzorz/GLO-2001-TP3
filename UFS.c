@@ -441,9 +441,9 @@ UINT16 ReserveNewINodeNumber(){
 /*private var*/
 UINT16 _reserveNewINodeBlock_nextCheckPosition = 2;
 
-/* Cette fonction réserve un retourne un numéro d'iNode libre.
+/* Cette fonction réserve un retourne un numéro de bloc libre.
    Retourne 
-     -1 si aucun inode libre.
+     -1 si aucun bloc libre.
      -1 si probleme de reservation */
 UINT16 ReserveNewBlockNumber(){
 	char blockBitmap[BLOCK_SIZE];
@@ -476,9 +476,7 @@ UINT16 ReserveNewBlockNumber(){
 	Elle retourne
 		-1 si problème de lecture ou d'écriture.
 		0  sinon.
-
 */
-
 int AddFileInDir(iNodeEntry* dirInode, iNodeEntry* fileInode, const char* endFileName) {
 	DirEntry* dirEntryTable;
 	if (getDirBlockFromBlockNumber(dirInode->Block[0], &dirEntryTable) != 0)
@@ -503,6 +501,7 @@ int AddFileInDir(iNodeEntry* dirInode, iNodeEntry* fileInode, const char* endFil
 	free(dirEntryTable);
 	return 0;
 }
+
 
 /*
 	Cette fonction prend un chemin en parametre, et retourne
@@ -793,7 +792,84 @@ int bd_write(const char *pFilename, const char *buffer, int offset, int numbytes
 }
 
 int bd_mkdir(const char *pDirName) {
-	return -1;
+	// Check if path valid
+	char endFolderName[FILENAME_SIZE];
+	char parentFolder[strlen(pDirName)];
+
+	switch (splitPath(pDirName, parentFolder, endFolderName))
+	{
+		case 0:
+			break;
+		case -1:
+			return -1;
+		
+	}
+	
+	// Check if folder exists.
+	UINT16 parentDirectoryINodeNumber;
+	switch (getINodeNumberOfPath(parentFolder, &parentDirectoryINodeNumber))
+	{
+		case -1 :
+			return -1;
+		case 0:
+			break; //continue
+	}
+
+	iNodeEntry parentDirectoryINodeEntry;
+
+	if (getINodeEntryFromINodeNumber(parentDirectoryINodeNumber, &parentDirectoryINodeEntry) != 0)
+	{
+		return -1;
+	}
+	// Check if file exists.
+	UINT16 fileInodeNumber;
+	if(getFileInodeNumberFromDirectoryINode(&parentDirectoryINodeEntry, endFolderName, &fileInodeNumber) != -1)
+	{
+		return -2; //File already exists
+	}
+
+	// Get new i-Node number
+	fileInodeNumber = ReserveNewINodeNumber();
+	if (fileInodeNumber == -1) {
+		return -1; // Can't add no more files.
+	}
+
+	// Get it's i-Node entry
+	iNodeEntry endFolderInodeEntry;
+	if (getINodeEntryFromINodeNumber(fileInodeNumber, &endFolderInodeEntry) != 0) {
+		return -1; // Error getting the iNodeEntry
+	}
+
+	// Initialiser un fichier complètement vide.
+	endFolderInodeEntry.iNodeStat.st_ino = fileInodeNumber;
+	endFolderInodeEntry.iNodeStat.st_nlink = 0;
+	endFolderInodeEntry.iNodeStat.st_size = 0;
+	endFolderInodeEntry.iNodeStat.st_mode = 0;
+	endFolderInodeEntry.iNodeStat.st_mode |= G_IFDIR;
+	endFolderInodeEntry.iNodeStat.st_blocks = 1;
+	endFolderInodeEntry.Block[0] = ReserveNewBlockNumber();
+
+
+	//Ajouter dans parent vers enfant.
+	if (AddFileInDir(&parentDirectoryINodeEntry, &endFolderInodeEntry, endFolderName) != 0)
+	{
+		return -1; // Error setting the value.
+	}
+	//Ajouter lien sur soit même enfant.
+	if (AddFileInDir(&endFolderInodeEntry, &endFolderInodeEntry, ".") != 0)
+	{
+		return -1; // Error setting the value.
+	}
+	//Ajouter lien dans enfant vers parent.
+	if (AddFileInDir(&endFolderInodeEntry, &parentDirectoryINodeEntry, "..") != 0)
+	{
+		return -1; // Error setting the value.
+	}
+
+	writeINodeEntry(&parentDirectoryINodeEntry);
+	writeINodeEntry(&endFolderInodeEntry);
+	
+	return 0;
 }
 	
 int bd_hardlink(const char *pPathExistant, const char *pPathNouveauLien) {
