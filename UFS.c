@@ -409,6 +409,20 @@ int FreeBloc(UINT16 BlockNum)
 	return 1;
 }
 
+/* Cette fonction prendre un entré d'inode et libérer tous les blocs mémoires associées.
+   Cette fonction retourne 
+    -1 s'il y a un problème
+     1 sinon. */
+int FreeFile(iNodeEntry* fileInode)
+{
+	for(UINT16 iBloc = 0; iBloc < fileInode->iNodeStat.st_blocks; iBloc++)
+	{
+		FreeBloc(fileInode->Block[iBloc]);
+	}
+	FreeINode(fileInode->iNodeStat.st_ino);
+}
+
+
 /*private var*/
 UINT16 _reserveNewINodeNumber_nextCheckPosition = 2;
 
@@ -502,6 +516,49 @@ int AddFileInDir(iNodeEntry* dirInode, iNodeEntry* fileInode, const char* endFil
 	return 0;
 }
 
+/* cette fnction prend un iNode de répertoire, un iNode de fichier et un nom de fichier.
+	Elle va modifier la mémoire associé au iNode de répertoire pour retirer ce fichier.
+	Elle va aussi modifier les pointeurs d'inode en paramètre, mais ne va pas les enregistrer.
+	Elle retourne
+		-2 si fichier pas trouvé.
+		-1 si problème de lecture ou d'écriture.
+		0  sinon.
+*/
+int RemoveFileFromDir(iNodeEntry* dirInode, iNodeEntry* fileInode, const char* fileName)
+{
+	DirEntry* dirEntryTable;
+	if (getDirBlockFromBlockNumber(dirInode->Block[0], &dirEntryTable) != 0)
+	{
+		return -1; // Problem reading block.
+	}
+	UINT16 nbDir = NumberofDirEntry(dirInode->iNodeStat.st_size);
+
+	int trouve = 0;
+	for(UINT16 iDir = 0; iDir < NumberofDirEntry(dirInode->iNodeStat.st_size); iDir++)
+	{
+		if (trouve == 1)
+		{// Si on a trouvé le nom du fichier, descendre ma position d'un bloc.
+			dirEntryTable[iDir - 1] = dirEntryTable[iDir];
+		} else if (strcmp(dirEntryTable[iDir].Filename, fileName) == 0)
+		{
+			trouve = 1;
+		}
+	} 
+	// Écrire les données dans le block du répertoire.
+	if (writeDirBlockToBlockNumber(dirInode->Block[0], dirEntryTable) != 0)
+	{
+		free(dirEntryTable);
+		return -1; // Problem writing block.
+	};
+
+	if (trouve == 0)
+	{
+		return -2; // File not found in dir
+	}
+
+	dirInode->iNodeStat.st_size -= sizeof(DirEntry);
+	fileInode->iNodeStat.st_nlink--;
+}
 
 /*
 	Cette fonction prend un chemin en parametre, et retourne
@@ -936,7 +993,7 @@ int bd_hardlink(const char *pPathExistant, const char *pPathNouveauLien) {
 
 	// Add link to original inode in new folder with a new name.
 	AddFileInDir(&destDirectoryINodeEntry, &fileINodeEntry, destFileName);
-	
+
 	writeINodeEntry(&destDirectoryINodeEntry);
 	writeINodeEntry(&fileINodeEntry);
 
@@ -944,7 +1001,70 @@ int bd_hardlink(const char *pPathExistant, const char *pPathNouveauLien) {
 }
 
 int bd_unlink(const char *pFilename) {
-	return -1;
+	// Check if path valid
+	char fileName[FILENAME_SIZE];
+	char folder[strlen(pFilename)];
+
+	switch (splitPath(pFilename, folder, fileName))
+	{
+		case 0:
+			break;
+		case -1:
+			return -1;
+		
+	}
+	
+	// Check if folder exists.
+	UINT16 directoryINodeNumber;
+	switch (getINodeNumberOfPath(folder, &directoryINodeNumber))
+	{
+		case -1 :
+			return -1; //Dest folder doesnt exist.
+		case 0:
+			break; //continue
+	}
+
+	iNodeEntry directoryINodeEntry;
+	if (getINodeEntryFromINodeNumber(directoryINodeNumber, &directoryINodeEntry) != 0)
+	{
+		return -1;
+	}
+	// Check if file exists.
+	UINT16 fileInodeNumber;
+	if(getFileInodeNumberFromDirectoryINode(&directoryINodeEntry, fileName, &fileInodeNumber) != 0)
+	{
+		return -1; //File do not exists
+	}
+
+	iNodeEntry fileINodeEntry;
+	if (getINodeEntryFromINodeNumber(fileInodeNumber, &fileINodeEntry) != 0)
+	{
+		return -1;
+	}
+
+	if (InodeEntryIsFile(&fileINodeEntry) != 0)
+	{
+		return -2; // Not a file.
+	}
+
+	switch (RemoveFileFromDir(&directoryINodeEntry, &fileINodeEntry, fileName))
+	{
+		case 0:
+			break; //continue
+		case -1:
+		case -2:
+			return -1; //File not found in dir/Internal Error
+	}
+
+	if (fileINodeEntry.iNodeStat.st_nlink == 0)
+	{
+		FreeFile(&fileINodeEntry);
+	}
+
+	writeINodeEntry(&directoryINodeEntry);
+	writeINodeEntry(&fileINodeEntry);
+
+	return 0;
 }
 
 int bd_rmdir(const char *pFilename) {
