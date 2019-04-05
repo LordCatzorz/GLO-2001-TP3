@@ -846,6 +846,8 @@ int bd_mkdir(const char *pDirName) {
 	endFolderInodeEntry.iNodeStat.st_size = 0;
 	endFolderInodeEntry.iNodeStat.st_mode = 0;
 	endFolderInodeEntry.iNodeStat.st_mode |= G_IFDIR;
+	endFolderInodeEntry.iNodeStat.st_mode |= G_IRWXU;
+	endFolderInodeEntry.iNodeStat.st_mode |= G_IRWXG;
 	endFolderInodeEntry.iNodeStat.st_blocks = 1;
 	endFolderInodeEntry.Block[0] = ReserveNewBlockNumber();
 
