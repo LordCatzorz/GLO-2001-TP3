@@ -877,7 +877,70 @@ int bd_mkdir(const char *pDirName) {
 }
 	
 int bd_hardlink(const char *pPathExistant, const char *pPathNouveauLien) {
-	return -1;
+	// Validation origine
+	// Check if file exists.
+	UINT16 fileINodeNumber;
+	switch (getINodeNumberOfPath(pPathExistant, &fileINodeNumber))
+	{
+		case -1 :
+			return -1;
+		case 0:
+			break; //continue
+	}
+
+	iNodeEntry fileINodeEntry;
+	if (getINodeEntryFromINodeNumber(fileINodeNumber, &fileINodeEntry) != 0)
+	{
+		return -1;
+	}
+
+	if ((InodeEntryIsDirectory(&fileINodeEntry) == 0))
+	{
+		return -3; // is folder, not file
+	}
+	//Validation destination
+	// Check if path valid
+	char destFileName[FILENAME_SIZE];
+	char destFolder[strlen(pPathNouveauLien)];
+
+	switch (splitPath(pPathNouveauLien, destFolder, destFileName))
+	{
+		case 0:
+			break;
+		case -1:
+			return -1;
+		
+	}
+	
+	// Check if folder exists.
+	UINT16 destDirectoryINodeNumber;
+	switch (getINodeNumberOfPath(destFolder, &destDirectoryINodeNumber))
+	{
+		case -1 :
+			return -1; //Dest folder doesnt exist.
+		case 0:
+			break; //continue
+	}
+
+	iNodeEntry destDirectoryINodeEntry;
+	if (getINodeEntryFromINodeNumber(destDirectoryINodeNumber, &destDirectoryINodeEntry) != 0)
+	{
+		return -1;
+	}
+	// Check if file exists.
+	UINT16 destFileInodeNumber;
+	if(getFileInodeNumberFromDirectoryINode(&destDirectoryINodeEntry, destFileName, &destFileInodeNumber) != -1)
+	{
+		return -2; //File already exists
+	}
+
+	// Add link to original inode in new folder with a new name.
+	AddFileInDir(&destDirectoryINodeEntry, &fileINodeEntry, destFileName);
+	
+	writeINodeEntry(&destDirectoryINodeEntry);
+	writeINodeEntry(&fileINodeEntry);
+
+	return 0;
 }
 
 int bd_unlink(const char *pFilename) {
