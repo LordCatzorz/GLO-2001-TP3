@@ -658,6 +658,8 @@ int bd_create(const char *pFilename) {
 	fileInodeEntry.iNodeStat.st_blocks = 0;
 	fileInodeEntry.iNodeStat.st_mode = 0;
 	fileInodeEntry.iNodeStat.st_mode |= G_IFREG;
+	endFolderInodeEntry.iNodeStat.st_mode |= G_IRWXU;
+	endFolderInodeEntry.iNodeStat.st_mode |= G_IRWXG;
 
 	if (AddFileInDir(&parentDirectoryINodeEntry, &fileInodeEntry, endFileName) != 0)
 	{
