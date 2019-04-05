@@ -1076,7 +1076,32 @@ int bd_rename(const char *pFilename, const char *pDestFilename) {
 }
 
 int bd_readdir(const char *pDirLocation, DirEntry **ppListeFichiers) {
-	return -1;
+	// Check if folder exists.
+	UINT16 directoryINodeNumber;
+	switch (getINodeNumberOfPath(pDirLocation, &directoryINodeNumber))
+	{
+		case -1 :
+			return -1; //Dest folder doesnt exist.
+		case 0:
+			break; //continue
+	}
+
+	iNodeEntry directoryINodeEntry;
+	if (getINodeEntryFromINodeNumber(directoryINodeNumber, &directoryINodeEntry) != 0)
+	{
+		return -1;
+	}
+
+	if(InodeEntryIsDirectory(&directoryINodeEntry) == -1)
+	{
+		return -1; // Not a directory
+	}
+
+	if (getDirBlockFromBlockNumber(directoryINodeEntry.Block[0], ppListeFichiers) != 0)
+	{
+		return -1; // Problem reading block.
+	}
+	return NumberofDirEntry(directoryINodeEntry.iNodeStat.st_size);
 }
 
 int bd_truncate(const char *pFilename, int NewSize) {
