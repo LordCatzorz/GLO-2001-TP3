@@ -931,69 +931,47 @@ int bd_mkdir(const char *pDirName) {
 	return 0;
 }
 	
-int bd_hardlink(const char *pPathExistant, const char *pPathNouveauLien) {
+int bd_hardlink(const char *pPathExistant, const char *pPathNouveauLien) {	
 	// Validation origine
 	// Check if file exists.
-	UINT16 fileINodeNumber;
-	switch (getINodeNumberOfPath(pPathExistant, &fileINodeNumber))
+	UINT16 srcFileINodeNumber;
+	switch (getINodeNumberOfPath(pPathExistant, &srcFileINodeNumber))
 	{
 		case -1 :
-			return -1;
+			return -1; //File not exists
 		case 0:
 			break; //continue
 	}
 
-	iNodeEntry fileINodeEntry;
-	if (getINodeEntryFromINodeNumber(fileINodeNumber, &fileINodeEntry) != 0)
+	iNodeEntry srcFileINodeEntry;
+	if (getINodeEntryFromINodeNumber(srcFileINodeNumber, &srcFileINodeEntry) != 0)
 	{
-		return -1;
+		return -1; //File not exists
 	}
 
-	if ((InodeEntryIsDirectory(&fileINodeEntry) == 0))
+	if ((InodeEntryIsDirectory(&srcFileINodeEntry) == 0))
 	{
 		return -3; // is folder, not file
 	}
-	//Validation destination
-	// Check if path valid
-	char destFileName[FILENAME_SIZE];
-	char destFolder[strlen(pPathNouveauLien)];
 
-	switch (splitPath(pPathNouveauLien, destFolder, destFileName))
+	iNodeEntry destParentDirectoryINodeEntry;
+	iNodeEntry destFileInodeEntry; // Should not be initialised in splitPath.
+	char destFilename[FILENAME_SIZE];
+	switch (splitPathToInodeEntry(pPathNouveauLien, &destParentDirectoryINodeEntry, &destFileInodeEntry, destFilename))
 	{
-		case 0:
-			break;
 		case -1:
-			return -1;
-		
-	}
-	
-	// Check if folder exists.
-	UINT16 destDirectoryINodeNumber;
-	switch (getINodeNumberOfPath(destFolder, &destDirectoryINodeNumber))
-	{
-		case -1 :
-			return -1; //Dest folder doesnt exist.
+			return -1; //Invalid path
 		case 0:
-			break; //continue
-	}
-
-	iNodeEntry destDirectoryINodeEntry;
-	if (getINodeEntryFromINodeNumber(destDirectoryINodeNumber, &destDirectoryINodeEntry) != 0)
-	{
-		return -1;
-	}
-	// Check if file exists.
-	UINT16 destFileInodeNumber;
-	if(getFileInodeNumberFromDirectoryINode(&destDirectoryINodeEntry, destFileName, &destFileInodeNumber) != -1)
-	{
-		return -2; //File already exists
+			break; //Continue
+		case 1:
+			return -2; //File already exists
 	}
 
 	// Add link to original inode in new folder with a new name.
-	AddFileInDir(&destDirectoryINodeEntry, &fileINodeEntry, destFileName);
+	AddFileInDir(&destParentDirectoryINodeEntry, &srcFileINodeEntry, destFilename);
 
-	writeINodeEntry(&destDirectoryINodeEntry);
-	writeINodeEntry(&fileINodeEntry);
+	writeINodeEntry(&destParentDirectoryINodeEntry);
+	writeINodeEntry(&srcFileINodeEntry);
 
 	return 0;
 }
