@@ -619,6 +619,57 @@ int InodeEntryIsDirectory(iNodeEntry* node)
 	}
 }
 
+/* Cette fonction prend un chemin.
+	Elle retourne
+		-1 Si le chemin jusqu'au "parent" est invalide
+		0  Si le chemin jusqu'au "parent" est valide, mais pas la dernière section.
+			parentINodeEntry contient alors l'inodeEntry de ce parent et pEndFileName la string du nom terminal
+		1  Si le chemin en entier est valide.
+			parentINodeEntry contient alors l'inodeEntry du parent
+			et endFileINodeEntry celui de la terminaison et pEndFileName la string du nom terminal
+*/
+int splitPathToInodeEntry(const char* pPath, iNodeEntry* parentINodeEntry, iNodeEntry* endFileINodeEntry, char* pEndFileName)
+{
+		// Check if path valid
+	char pathTo[strlen(pPath)];
+
+	switch (splitPath(pPath, pathTo, pEndFileName))
+	{
+		case 0:
+			break;
+		case -1:
+			return -1;
+	}
+	
+	// Check if folder exists.
+	UINT16 parentINodeNumber;
+	switch (getINodeNumberOfPath(pathTo, &parentINodeNumber))
+	{
+		case -1 :
+			return -1; //Dest folder doesnt exist.
+		case 0:
+			break; //continue
+	}
+
+	// Fetch parent inodeEntry
+	if (getINodeEntryFromINodeNumber(parentINodeNumber, parentINodeEntry) != 0)
+	{
+		return -1;
+	}
+
+	// Check if file exists.
+	UINT16 endFileInodeNumber;
+	if(getFileInodeNumberFromDirectoryINode(parentINodeEntry, pEndFileName, &endFileInodeNumber) != 0)
+	{
+		return 0; //File do not exists
+	}
+
+	if (getINodeEntryFromINodeNumber(endFileInodeNumber, endFileINodeEntry) != 0)
+	{
+		return 0;
+	}
+	return 1;
+}
 
 /* ----------------------------------------------------------------------------------------
 	C'est votre partie, bon succès!
@@ -660,42 +711,20 @@ int bd_stat(const char *pFilename, gstat *pStat) {
 }
 
 int bd_create(const char *pFilename) {
-	// Check if path valid
-	char endFileName[FILENAME_SIZE];
-	char folder[strlen(pFilename)];
-
-	switch (splitPath(pFilename, folder, endFileName))
-	{
-		case 0:
-			break;
-		case -1:
-			return -1;
-		
-	}
-	
-	// Check if folder exists.
-	UINT16 parentDirectoryINodeNumber;
-	switch (getINodeNumberOfPath(folder, &parentDirectoryINodeNumber))
-	{
-		case -1 :
-			return -1;
-		case 0:
-			break; //continue
-	}
-
 	iNodeEntry parentDirectoryINodeEntry;
-
-	if (getINodeEntryFromINodeNumber(parentDirectoryINodeNumber, &parentDirectoryINodeEntry) != 0)
+	iNodeEntry fileInodeEntry; //Should be intialised in splitPath
+	char endFilename[FILENAME_SIZE];
+	switch (splitPathToInodeEntry(pFilename, &parentDirectoryINodeEntry, &fileInodeEntry, endFilename))
 	{
-		return -1;
+		case -1:
+			return -1; //Invalid path
+		case 0:
+			break; //Continue
+		case 1:
+			return -2; //File already exists
 	}
-	// Check if file exists.
+
 	UINT16 fileInodeNumber;
-	if(getFileInodeNumberFromDirectoryINode(&parentDirectoryINodeEntry, endFileName, &fileInodeNumber) != -1)
-	{
-		return -2; //File already exists
-	}
-
 	// Get new i-Node number
 	fileInodeNumber = ReserveNewINodeNumber();
 	if (fileInodeNumber == -1) {
@@ -703,7 +732,6 @@ int bd_create(const char *pFilename) {
 	}
 
 	// Get it's i-Node entry
-	iNodeEntry fileInodeEntry;
 	if (getINodeEntryFromINodeNumber(fileInodeNumber, &fileInodeEntry) != 0) {
 		return -1; // Error getting the iNodeEntry
 	}
@@ -718,7 +746,7 @@ int bd_create(const char *pFilename) {
 	fileInodeEntry.iNodeStat.st_mode |= G_IRWXU;
 	fileInodeEntry.iNodeStat.st_mode |= G_IRWXG;
 
-	if (AddFileInDir(&parentDirectoryINodeEntry, &fileInodeEntry, endFileName) != 0)
+	if (AddFileInDir(&parentDirectoryINodeEntry, &fileInodeEntry, endFilename) != 0)
 	{
 		return -1; // Error setting the value.
 	}
