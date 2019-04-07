@@ -977,53 +977,24 @@ int bd_hardlink(const char *pPathExistant, const char *pPathNouveauLien) {
 }
 
 int bd_unlink(const char *pFilename) {
-	// Check if path valid
-	char fileName[FILENAME_SIZE];
-	char folder[strlen(pFilename)];
-
-	switch (splitPath(pFilename, folder, fileName))
+	iNodeEntry parentDirectoryINodeEntry;
+	iNodeEntry fileInodeEntry;
+	char filename[FILENAME_SIZE];
+	switch (splitPathToInodeEntry(pFilename, &parentDirectoryINodeEntry, &fileInodeEntry, filename))
 	{
-		case 0:
-			break;
 		case -1:
-			return -1;
-		
-	}
-	
-	// Check if folder exists.
-	UINT16 directoryINodeNumber;
-	switch (getINodeNumberOfPath(folder, &directoryINodeNumber))
-	{
-		case -1 :
-			return -1; //Dest folder doesnt exist.
 		case 0:
-			break; //continue
+			return -1; //Invalid path
+		case 1:
+			break; //Continue
 	}
 
-	iNodeEntry directoryINodeEntry;
-	if (getINodeEntryFromINodeNumber(directoryINodeNumber, &directoryINodeEntry) != 0)
-	{
-		return -1;
-	}
-	// Check if file exists.
-	UINT16 fileInodeNumber;
-	if(getFileInodeNumberFromDirectoryINode(&directoryINodeEntry, fileName, &fileInodeNumber) != 0)
-	{
-		return -1; //File do not exists
-	}
-
-	iNodeEntry fileINodeEntry;
-	if (getINodeEntryFromINodeNumber(fileInodeNumber, &fileINodeEntry) != 0)
-	{
-		return -1;
-	}
-
-	if (InodeEntryIsFile(&fileINodeEntry) != 0)
+	if (InodeEntryIsFile(&fileInodeEntry) != 0)
 	{
 		return -2; // Not a file.
 	}
 
-	switch (RemoveFileFromDir(&directoryINodeEntry, &fileINodeEntry, fileName))
+	switch (RemoveFileFromDir(&parentDirectoryINodeEntry, &fileInodeEntry, filename))
 	{
 		case 0:
 			break; //continue
@@ -1032,13 +1003,13 @@ int bd_unlink(const char *pFilename) {
 			return -1; //File not found in dir/Internal Error
 	}
 
-	if (fileINodeEntry.iNodeStat.st_nlink == 0)
+	if (fileInodeEntry.iNodeStat.st_nlink == 0)
 	{
-		FreeFile(&fileINodeEntry);
+		FreeFile(&fileInodeEntry);
 	}
 
-	writeINodeEntry(&directoryINodeEntry);
-	writeINodeEntry(&fileINodeEntry);
+	writeINodeEntry(&parentDirectoryINodeEntry);
+	writeINodeEntry(&fileInodeEntry);
 
 	return 0;
 }
