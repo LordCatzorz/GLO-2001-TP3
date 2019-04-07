@@ -1068,7 +1068,63 @@ int bd_unlink(const char *pFilename) {
 }
 
 int bd_rmdir(const char *pFilename) {
-	return -1;
+	// Check if path valid
+	char endFolder[FILENAME_SIZE];
+	char parentFolder[strlen(pFilename)];
+
+	switch (splitPath(pFilename, parentFolder, endFolder))
+	{
+		case 0:
+			break;
+		case -1:
+			return -1;
+		
+	}
+	
+	// Check if folder exists.
+	UINT16 parentFolderINodeNumber;
+	switch (getINodeNumberOfPath(parentFolder, &parentFolderINodeNumber))
+	{
+		case -1 :
+			return -1; //Dest folder doesnt exist.
+		case 0:
+			break; //continue
+	}
+
+	iNodeEntry parentFolderINodeEntry;
+	if (getINodeEntryFromINodeNumber(parentFolderINodeNumber, &parentFolderINodeEntry) != 0)
+	{
+		return -1;
+	}
+	// Check if file exists.
+	UINT16 endFolderInodeNumber;
+	if(getFileInodeNumberFromDirectoryINode(&parentFolderINodeEntry, endFolder, &endFolderInodeNumber) != 0)
+	{
+		return -1; //File do not exists
+	}
+
+	iNodeEntry endFolderINodeEntry;
+	if (getINodeEntryFromINodeNumber(endFolderInodeNumber, &endFolderINodeEntry) != 0)
+	{
+		return -1;
+	}
+
+	if (InodeEntryIsDirectory(&endFolderINodeEntry) != 0)
+	{
+		return -2; // Not a file.
+	}
+
+	if (NumberofDirEntry(endFolderINodeEntry.iNodeStat.st_size) != 2)
+	{
+		return -3; // N'a pas que deux fichiers.
+	}
+
+	RemoveFileFromDir(&parentFolderINodeEntry, &endFolderINodeEntry, endFolder);
+	FreeFile(&endFolderINodeEntry); //Libérer Inodes et blocs
+
+	writeINodeEntry(&parentFolderINodeEntry);
+	//Pas besoin d'enregistrer l'enfant, puisque tout a été libéré.
+	return 0;
 }
 
 int bd_rename(const char *pFilename, const char *pDestFilename) {
