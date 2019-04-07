@@ -712,7 +712,7 @@ int bd_stat(const char *pFilename, gstat *pStat) {
 
 int bd_create(const char *pFilename) {
 	iNodeEntry parentDirectoryINodeEntry;
-	iNodeEntry fileInodeEntry; //Should be intialised in splitPath
+	iNodeEntry fileInodeEntry;
 	char endFilename[FILENAME_SIZE];
 	switch (splitPathToInodeEntry(pFilename, &parentDirectoryINodeEntry, &fileInodeEntry, endFilename))
 	{
@@ -758,40 +758,37 @@ int bd_create(const char *pFilename) {
 }
 
 int bd_read(const char *pFilename, char *buffer, int offset, int numbytes) {
-	UINT16 inodeNumber;
-	switch (getINodeNumberOfPath(pFilename, &inodeNumber))
+	iNodeEntry parentDirectoryINodeEntry; //Unused
+	iNodeEntry fileInodeEntry;
+	char endFilename[FILENAME_SIZE]; //Unused
+	switch (splitPathToInodeEntry(pFilename, &parentDirectoryINodeEntry, &fileInodeEntry, endFilename))
 	{
-		case -1 :
-			printf("Le fichier %s est inexistant!\n", pFilename);
-			return -1; //Invalid name
+		case -1:
 		case 0:
+			printf("Le fichier %s est inexistant!\n", pFilename);
+			return -1;
+		case 1:
 			break; //continue
 	}
 
-	iNodeEntry fileNodeEntry;
-	if (getINodeEntryFromINodeNumber(inodeNumber, &fileNodeEntry) != 0)
-	{
-		return -1; //Internal error
-	}
-
-	if(InodeEntryIsDirectory(&fileNodeEntry) == 0)
+	if(InodeEntryIsDirectory(&fileInodeEntry) == 0)
 	{
 		printf("Le fichier %s est un répertoire!\n", pFilename);
 		return -2; //Path is directory
 	}
 
 	UINT16 nbOctetLu = 0;
-	const UINT16 nombreMaxBloc = fileNodeEntry.iNodeStat.st_blocks;
+	const UINT16 nombreMaxBloc = fileInodeEntry.iNodeStat.st_blocks;
 	UINT16 blocEnCours = offset / BLOCK_SIZE;
 	
-	UINT16 nbOctetRestantAvantFin = min(fileNodeEntry.iNodeStat.st_size - offset, numbytes); // Ne pas lire plus que la taille du fichier
+	UINT16 nbOctetRestantAvantFin = min(fileInodeEntry.iNodeStat.st_size - offset, numbytes); // Ne pas lire plus que la taille du fichier
 	UINT16 nbOctetToRead = 0;
 
 	while(nbOctetRestantAvantFin > 0 && blocEnCours < nombreMaxBloc)
 	{
 		UINT16 innerBlockOffset =  blocEnCours == 0? offset % BLOCK_SIZE : 0 ;
 		char readblock[BLOCK_SIZE];
-		ReadBlock(fileNodeEntry.Block[blocEnCours], readblock);
+		ReadBlock(fileInodeEntry.Block[blocEnCours], readblock);
 
 		nbOctetToRead = min(nbOctetRestantAvantFin, BLOCK_SIZE - innerBlockOffset);
 		memcpy(&(buffer[nbOctetLu]), &readblock[innerBlockOffset], nbOctetToRead);
