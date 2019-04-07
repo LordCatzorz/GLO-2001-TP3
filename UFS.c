@@ -712,7 +712,7 @@ int bd_stat(const char *pFilename, gstat *pStat) {
 
 int bd_create(const char *pFilename) {
 	iNodeEntry parentDirectoryINodeEntry;
-	iNodeEntry fileInodeEntry;
+	iNodeEntry fileInodeEntry; // Should not be initialised in splitPath.
 	char endFilename[FILENAME_SIZE];
 	switch (splitPathToInodeEntry(pFilename, &parentDirectoryINodeEntry, &fileInodeEntry, endFilename))
 	{
@@ -873,56 +873,32 @@ int bd_write(const char *pFilename, const char *buffer, int offset, int numbytes
 }
 
 int bd_mkdir(const char *pDirName) {
-	// Check if path valid
-	char endFolderName[FILENAME_SIZE];
-	char parentFolder[strlen(pDirName)];
-
-	switch (splitPath(pDirName, parentFolder, endFolderName))
-	{
-		case 0:
-			break;
-		case -1:
-			return -1;
-		
-	}
-	
-	// Check if folder exists.
-	UINT16 parentDirectoryINodeNumber;
-	switch (getINodeNumberOfPath(parentFolder, &parentDirectoryINodeNumber))
-	{
-		case -1 :
-			return -1;
-		case 0:
-			break; //continue
-	}
-
 	iNodeEntry parentDirectoryINodeEntry;
-
-	if (getINodeEntryFromINodeNumber(parentDirectoryINodeNumber, &parentDirectoryINodeEntry) != 0)
+	iNodeEntry endFolderInodeEntry; // Should not be initialised in splitPath.
+	char endFolderName[FILENAME_SIZE];
+	switch (splitPathToInodeEntry(pDirName, &parentDirectoryINodeEntry, &endFolderInodeEntry, endFolderName))
 	{
-		return -1;
+		case -1:
+			return -1; //Invalid path
+		case 0:
+			break; //Continue
+		case 1:
+			return -2; //File already exists
 	}
-	// Check if file exists.
-	UINT16 fileInodeNumber;
-	if(getFileInodeNumberFromDirectoryINode(&parentDirectoryINodeEntry, endFolderName, &fileInodeNumber) != -1)
-	{
-		return -2; //File already exists
-	}
-
+	UINT16 endFolderInodeNumber;
 	// Get new i-Node number
-	fileInodeNumber = ReserveNewINodeNumber();
-	if (fileInodeNumber == -1) {
+	endFolderInodeNumber = ReserveNewINodeNumber();
+	if (endFolderInodeNumber == -1) {
 		return -1; // Can't add no more files.
 	}
 
 	// Get it's i-Node entry
-	iNodeEntry endFolderInodeEntry;
-	if (getINodeEntryFromINodeNumber(fileInodeNumber, &endFolderInodeEntry) != 0) {
+	if (getINodeEntryFromINodeNumber(endFolderInodeNumber, &endFolderInodeEntry) != 0) {
 		return -1; // Error getting the iNodeEntry
 	}
 
 	// Initialiser un fichier complètement vide.
-	endFolderInodeEntry.iNodeStat.st_ino = fileInodeNumber;
+	endFolderInodeEntry.iNodeStat.st_ino = endFolderInodeNumber;
 	endFolderInodeEntry.iNodeStat.st_nlink = 0;
 	endFolderInodeEntry.iNodeStat.st_size = 0;
 	endFolderInodeEntry.iNodeStat.st_mode = 0;
