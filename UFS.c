@@ -106,6 +106,38 @@ void printiNode(iNodeEntry iNode) {
 	}
 }
 
+/* Cette fonction prendre un iNodeEntry en paramètre.
+	Elle retourne
+		0 si c'est un fichier.
+	 	-1 sinon.*/
+int InodeEntryIsFile(iNodeEntry* node)
+{
+	if (node->iNodeStat.st_mode & G_IFREG)
+	{
+		return 0;
+	} 
+	else 
+	{
+		return -1;
+	}
+}
+
+/* Cette fonction prendre un iNodeEntry en paramètre.
+	Elle retourne
+		0 si c'est un répertoire.
+	 	-1 sinon.*/
+int InodeEntryIsDirectory(iNodeEntry* node)
+{
+	if (node->iNodeStat.st_mode & G_IFDIR)
+	{
+		return 0;
+	} 
+	else 
+	{
+		return -1;
+	}
+}
+
 /* Cette fonction prendre en paramètre un numéro de block
    Elle retourne:
      -1 Si problème de lecture du bloc.
@@ -567,6 +599,11 @@ int RemoveFileFromDir(iNodeEntry* dirInode, iNodeEntry* fileInode, const char* f
 		return -2; // File not found in dir
 	}
 
+	if (InodeEntryIsDirectory(fileInode) == 0)
+	{
+		dirInode->iNodeStat.st_nlink--;
+	}
+
 	dirInode->iNodeStat.st_size -= sizeof(DirEntry);
 	fileInode->iNodeStat.st_nlink--;
 }
@@ -596,38 +633,6 @@ int splitPath(const char* pPath, char* pParentPath, char* pFile) {
 	}
 
 	return 1;
-}
-
-/* Cette fonction prendre un iNodeEntry en paramètre.
-	Elle retourne
-		0 si c'est un fichier.
-	 	-1 sinon.*/
-int InodeEntryIsFile(iNodeEntry* node)
-{
-	if (node->iNodeStat.st_mode & G_IFREG)
-	{
-		return 0;
-	} 
-	else 
-	{
-		return -1;
-	}
-}
-
-/* Cette fonction prendre un iNodeEntry en paramètre.
-	Elle retourne
-		0 si c'est un répertoire.
-	 	-1 sinon.*/
-int InodeEntryIsDirectory(iNodeEntry* node)
-{
-	if (node->iNodeStat.st_mode & G_IFDIR)
-	{
-		return 0;
-	} 
-	else 
-	{
-		return -1;
-	}
 }
 
 /* Cette fonction prend un chemin.
