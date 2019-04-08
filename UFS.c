@@ -1166,7 +1166,7 @@ int bd_truncate(const char *pFilename, int NewSize) {
 	{
 		UINT16 nbBlock = srcEndFileINodeEntry.iNodeStat.st_blocks;
 		//Libérer les blocs supérieurs au nouveau dernier block.
-		for(UINT16 i = NewSize/BLOCK_SIZE + 1; i < nbBlock; i++)
+		for(UINT16 i = (NewSize - BLOCK_SIZE)/BLOCK_SIZE + 1; i < nbBlock; i++)
 		{
 			FreeBloc(srcEndFileINodeEntry.Block[i]);
 			srcEndFileINodeEntry.iNodeStat.st_blocks--;
