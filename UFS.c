@@ -19,6 +19,19 @@ int max(int a, int b) {
 	return a>b ? a : b;
 }
 
+int countCharInString(const char* str, const char matchChar)
+{
+	int cnt = 0;
+	for(int i = 0; i < strlen(str); i++)
+	{
+		if ((str[i] == matchChar))
+		{
+			cnt++;
+		}
+	}
+	return cnt;
+}
+
 /* Cette fonction va extraire le repertoire d'une chemin d'acces complet, et le copier
    dans pDir.  Par exemple, si le chemin fourni pPath="/doc/tmp/a.txt", cette fonction va
    copier dans pDir le string "/doc/tmp" . Si le chemin fourni est pPath="/a.txt", la fonction
@@ -1046,7 +1059,48 @@ int bd_rmdir(const char *pFilename) {
 }
 
 int bd_rename(const char *pFilename, const char *pDestFilename) {
-	return -1;
+	if(strncmp(pFilename, pDestFilename, strlen(pFilename)) == 0 && (countCharInString(pFilename, '/') < countCharInString(pDestFilename, '/')))
+	{
+		return -1; // Ajout récursif
+	}
+	iNodeEntry srcParentDirectoryINodeEntry;
+	iNodeEntry srcEndFileINodeEntry;
+	char srcEndFileName[FILENAME_SIZE];
+	switch (splitPathToInodeEntry(pFilename, &srcParentDirectoryINodeEntry, &srcEndFileINodeEntry, srcEndFileName))
+	{
+		case -1:
+		case 0:
+			return -1; //Invalid path
+		case 1:
+			break; //Continue
+	}
+
+	iNodeEntry destParentDirectoryINodeEntry;
+	iNodeEntry destEndFileINodeEntry;
+	char destEndFileName[FILENAME_SIZE];
+	switch (splitPathToInodeEntry(pDestFilename, &destParentDirectoryINodeEntry, &destEndFileINodeEntry, destEndFileName))
+	{
+		case -1:
+			return -1; // Invalid path
+		case 0:
+			break; // continue
+		case 1:
+			return -1; // Dest file already exists
+	}
+
+	if (InodeEntryIsDirectory(&srcEndFileINodeEntry) == 0)
+	{
+		RemoveFileFromDir(&srcEndFileINodeEntry, &srcParentDirectoryINodeEntry, "..");
+		AddFileInDir(&srcEndFileINodeEntry, &destParentDirectoryINodeEntry, "..");
+	}
+	AddFileInDir(&destParentDirectoryINodeEntry, &srcEndFileINodeEntry, destEndFileName);
+	RemoveFileFromDir(&srcParentDirectoryINodeEntry, &srcEndFileINodeEntry, srcEndFileName);
+
+	writeINodeEntry(&srcEndFileINodeEntry);
+	writeINodeEntry(&srcParentDirectoryINodeEntry);
+	writeINodeEntry(&destParentDirectoryINodeEntry);
+
+	return 0;
 }
 
 int bd_readdir(const char *pDirLocation, DirEntry **ppListeFichiers) {
