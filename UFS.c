@@ -888,15 +888,29 @@ int bd_write(const char *pFilename, const char *buffer, int offset, int numbytes
 int bd_mkdir(const char *pDirName) {
 	iNodeEntry parentDirectoryINodeEntry;
 	iNodeEntry endFolderInodeEntry; // Should not be initialised in splitPath.
+
+	//Using pointer to support creating "/"
+	iNodeEntry* ptr_parentDirectoryINodeEntry = &parentDirectoryINodeEntry;
+	iNodeEntry* ptr_endFolderInodeEntry = &endFolderInodeEntry;
 	char endFolderName[FILENAME_SIZE];
-	switch (splitPathToInodeEntry(pDirName, &parentDirectoryINodeEntry, &endFolderInodeEntry, endFolderName))
+
+	if (strcmp("/", pDirName) != 0)
 	{
-		case -1:
-			return -1; //Invalid path
-		case 0:
-			break; //Continue
-		case 1:
-			return -2; //File already exists
+		switch (splitPathToInodeEntry(pDirName, ptr_parentDirectoryINodeEntry, ptr_endFolderInodeEntry, endFolderName))
+		{
+			case -1:
+				return -1; //Invalid path
+			case 0:
+				break; //Continue
+			case 1:
+				return -2; //File already exists
+		}
+	} 
+	else 
+	{
+		// Creating root directory
+		strcpy(endFolderName, "/");
+		ptr_parentDirectoryINodeEntry = ptr_endFolderInodeEntry;
 	}
 	UINT16 endFolderInodeNumber;
 	// Get new i-Node number
@@ -906,7 +920,7 @@ int bd_mkdir(const char *pDirName) {
 	}
 
 	// Get it's i-Node entry
-	if (getINodeEntryFromINodeNumber(endFolderInodeNumber, &endFolderInodeEntry) != 0) {
+	if (getINodeEntryFromINodeNumber(endFolderInodeNumber, ptr_endFolderInodeEntry) != 0) {
 		return -1; // Error getting the iNodeEntry
 	}
 
@@ -923,23 +937,23 @@ int bd_mkdir(const char *pDirName) {
 
 
 	//Ajouter dans parent vers enfant.
-	if (AddFileInDir(&parentDirectoryINodeEntry, &endFolderInodeEntry, endFolderName) != 0)
+	if (AddFileInDir(ptr_parentDirectoryINodeEntry, ptr_endFolderInodeEntry, endFolderName) != 0)
 	{
 		return -1; // Error setting the value.
 	}
 	//Ajouter lien sur soit même enfant.
-	if (AddFileInDir(&endFolderInodeEntry, &endFolderInodeEntry, ".") != 0)
+	if (AddFileInDir(ptr_endFolderInodeEntry, ptr_endFolderInodeEntry, ".") != 0)
 	{
 		return -1; // Error setting the value.
 	}
 	//Ajouter lien dans enfant vers parent.
-	if (AddFileInDir(&endFolderInodeEntry, &parentDirectoryINodeEntry, "..") != 0)
+	if (AddFileInDir(&endFolderInodeEntry, ptr_parentDirectoryINodeEntry, "..") != 0)
 	{
 		return -1; // Error setting the value.
 	}
 
-	writeINodeEntry(&parentDirectoryINodeEntry);
-	writeINodeEntry(&endFolderInodeEntry);
+	writeINodeEntry(ptr_parentDirectoryINodeEntry);
+	writeINodeEntry(ptr_endFolderInodeEntry);
 	
 	return 0;
 }
@@ -1137,7 +1151,34 @@ int bd_truncate(const char *pFilename, int NewSize) {
 }
 
 int bd_formatdisk() {
-	return -1;
+	char initialFreeINode[BLOCK_SIZE];
+	for(int i = 0; i < BLOCK_SIZE; i++)
+	{
+		initialFreeINode[i] = 1;
+	}
+	initialFreeINode[0] = 0; //Inode 0 is always taken
+	WriteBlock(FREE_INODE_BITMAP, initialFreeINode);
+
+	char initialFreeBlock[BLOCK_SIZE];
+	for(int i = 0; i < BLOCK_SIZE; i++)
+	{
+		initialFreeBlock[i] = 1;
+	}
+
+	initialFreeBlock[FREE_BLOCK_BITMAP] = 0; 
+	initialFreeBlock[FREE_INODE_BITMAP] = 0;
+	for(int i = BASE_BLOCK_INODE; i <= MAX_BLOCK_INODE; i++)
+	{
+		initialFreeBlock[i] = 0; //Réserver les blocs des inodes.
+	}
+	WriteBlock(FREE_BLOCK_BITMAP, initialFreeBlock);
+
+	_reserveNewINodeBlock_nextCheckPosition = MAX_BLOCK_INODE + 1;
+	_reserveNewINodeNumber_nextCheckPosition = ROOT_INODE;
+
+	bd_mkdir("/");
+
+	return 0;
 }
 
 int bd_chmod(const char *pFilename, UINT16 st_mode) {
