@@ -361,7 +361,7 @@ int TakeINode(UINT16 InodeNumber)
 	if (WriteBlock(FREE_INODE_BITMAP, InodeFreeBitmap) < 1) {
 		return -1;
 	};
-	printf("Saisie i-node %d \n", InodeNumber);
+	printf("GLOFS: Saisie i-node %d \n", InodeNumber);
 	return 1;
 }
 
@@ -379,7 +379,7 @@ int FreeINode(UINT16 InodeNumber)
 	if (WriteBlock(FREE_INODE_BITMAP, InodeFreeBitmap) < 1) {
 		return -1;
 	};
-	printf("Relache i-node %d \n", InodeNumber);
+	printf("GLOFS: Relache i-node %d \n", InodeNumber);
 	return 1;
 }
 
@@ -397,7 +397,7 @@ int TakeBloc(UINT16 BlockNum)
 	if (WriteBlock(FREE_BLOCK_BITMAP, BlockFreeBitmap) < 1) {
 		return -1;
 	}
-	printf("Saisie bloc %d \n",BlockNum);
+	printf("GLOFS: Saisie bloc %d \n",BlockNum);
 	return 1;
 }
 
@@ -416,7 +416,7 @@ int FreeBloc(UINT16 BlockNum)
 	if (WriteBlock(FREE_BLOCK_BITMAP, BlockFreeBitmap) < 1) {
 		return -1;
 	}
-	printf("Relache bloc %d \n", BlockNum);
+	printf("GLOFS: Relache bloc %d \n", BlockNum);
 	return 1;
 }
 
@@ -784,7 +784,7 @@ int bd_read(const char *pFilename, char *buffer, int offset, int numbytes) {
 
 	if(InodeEntryIsDirectory(&fileInodeEntry) == 0)
 	{
-		printf("Le fichier %s est un répertoire!\n", pFilename);
+		printf("Le fichier %s est un repertoire!\n", pFilename);
 		return -2; //Path is directory
 	}
 
@@ -797,7 +797,7 @@ int bd_read(const char *pFilename, char *buffer, int offset, int numbytes) {
 
 	while(nbOctetRestantAvantFin > 0 && blocEnCours < nombreMaxBloc)
 	{
-		UINT16 innerBlockOffset =  blocEnCours == 0? offset % BLOCK_SIZE : 0 ;
+		UINT16 innerBlockOffset =  nbOctetLu == 0? offset % BLOCK_SIZE : 0 ;
 		char readblock[BLOCK_SIZE];
 		ReadBlock(fileInodeEntry.Block[blocEnCours], readblock);
 
@@ -834,7 +834,7 @@ int bd_write(const char *pFilename, const char *buffer, int offset, int numbytes
 
 	if (offset > fileInodeEntry.iNodeStat.st_size)
 	{
-		printf("L'offset demande est trop grand!\n");
+		printf("L'offset demande est trop grand pour %s!\n", pFilename);
 		return -3; // Offset plus grand que la taille du fichier.
 	}
 
