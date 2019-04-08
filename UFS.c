@@ -372,7 +372,6 @@ int TakeINode(UINT16 InodeNumber)
 int FreeINode(UINT16 InodeNumber)
 {
 	char InodeFreeBitmap[BLOCK_SIZE];
-	ReadBlock(FREE_INODE_BITMAP, InodeFreeBitmap);
 	if (ReadBlock(FREE_INODE_BITMAP, InodeFreeBitmap) < 1) {
 		return -1;
 	}
@@ -391,7 +390,6 @@ int FreeINode(UINT16 InodeNumber)
 int TakeBloc(UINT16 BlockNum)
 {
 	char BlockFreeBitmap[BLOCK_SIZE];
-	ReadBlock(FREE_BLOCK_BITMAP, BlockFreeBitmap);
 	if (ReadBlock(FREE_BLOCK_BITMAP, BlockFreeBitmap) < 1) {
 		return -1;
 	}
@@ -1147,7 +1145,36 @@ int bd_readdir(const char *pDirLocation, DirEntry **ppListeFichiers) {
 }
 
 int bd_truncate(const char *pFilename, int NewSize) {
-	return -1;
+	iNodeEntry srcParentDirectoryINodeEntry; //Unsued
+	iNodeEntry srcEndFileINodeEntry;
+	char srcEndFileName[FILENAME_SIZE]; //Unused
+	switch (splitPathToInodeEntry(pFilename, &srcParentDirectoryINodeEntry, &srcEndFileINodeEntry, srcEndFileName))
+	{
+		case -1:
+		case 0:
+			return -1; //Invalid path
+		case 1:
+			break; //Continue
+	}
+
+	if (InodeEntryIsDirectory(&srcEndFileINodeEntry) == 0)
+	{
+		return -2; //Is a directory
+	}
+
+	if ((NewSize >= 0) && (srcEndFileINodeEntry.iNodeStat.st_size > NewSize))
+	{
+		UINT16 nbBlock = srcEndFileINodeEntry.iNodeStat.st_blocks;
+		//Libérer les blocs supérieurs au nouveau dernier block.
+		for(UINT16 i = NewSize/BLOCK_SIZE + 1; i < nbBlock; i++)
+		{
+			FreeBloc(srcEndFileINodeEntry.Block[i]);
+			srcEndFileINodeEntry.iNodeStat.st_blocks--;
+		}
+		srcEndFileINodeEntry.iNodeStat.st_size = NewSize;
+		writeINodeEntry(&srcEndFileINodeEntry);
+	}	
+	return srcEndFileINodeEntry.iNodeStat.st_size;
 }
 
 int bd_formatdisk() {
