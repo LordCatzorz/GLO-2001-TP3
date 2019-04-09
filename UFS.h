@@ -65,7 +65,7 @@ typedef struct {
 
 #define NUM_INODE_PER_BLOCK (BLOCK_SIZE/sizeof(iNodeEntry))
 
-#define FONCTION_PERSO "perso" // Mettre le nom de votre fonctionnalité - celle de ligne de commande - dans les guillemets
+#define FONCTION_PERSO "sort" // Mettre le nom de votre fonctionnalité - celle de ligne de commande - dans les guillemets
 #define NB_ARG_FCT_PERSO 1  // Remplacer 1 par le nombre d'arguments attendu par votre fonctionnalité personnalisée, minimum 1
 
 int bd_countusedblocks(void);
@@ -82,7 +82,7 @@ int bd_readdir(const char *pDirLocation, DirEntry **ppListeFichiers);
 int bd_formatdisk(void);
 int bd_truncate(const char *pFilename, int NewSize);
 int bd_chmod(const char *pFilename, UINT16 st_mode);
-int bd_fct_perso(void); // Changer void par le(s) paramètre(s) nécessaire(s)
+int bd_fct_perso(const char* pDirName); // Changer void par le(s) paramètre(s) nécessaire(s)
 
 //3e6a98197487be5b26d0e4ec2051411f
 

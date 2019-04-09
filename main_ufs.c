@@ -208,10 +208,10 @@ int main(int argc, char **argv) {
 	else if (strcmp(argv[1],FONCTION_PERSO)==0) {
 		if (argc!= NB_ARG_FCT_PERSO + 2) { 
 			printf("La commande %s demande %d argument!\n", FONCTION_PERSO, NB_ARG_FCT_PERSO);
-			printf("   ufs %s\n", FONCTION_PERSO); // ajouter vos argurments en exemple
+			printf("   ufs %s nom_dossier\n ", FONCTION_PERSO); // ajouter vos argurments en exemple
 			return 1;
 		}
-		RetVal = bd_fct_perso();//ajouter arguments nécessaires
+		RetVal = bd_fct_perso(argv[2]);//ajouter arguments nécessaires
 
 	}
 

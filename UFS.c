@@ -1257,6 +1257,85 @@ int bd_chmod(const char *pFilename, UINT16 st_mode) {
 	writeINodeEntry(&fileNodeEntry);
 }
 
-int bd_fct_perso(){ //ajuster aussi les paramètres
-	return -1;
+/* Cette fonction va réordonner le répertoire en ordre alphabétique 
+	retourne 
+		0 si aucun changement
+		1 si changement
+		-1 si chemin inexitant
+		-2 si pas dossier*/
+int bd_fct_perso(const char* pDirName){ //ajuster aussi les paramètres
+	iNodeEntry parentDirectoryINodeEntry; //Unused
+	iNodeEntry endFileINodeEntry;
+	char endFileName[FILENAME_SIZE];//Unused
+
+	if(strcmp(pDirName, "/") == 0)
+	{
+		 getINodeEntryFromINodeNumber(ROOT_INODE, &endFileINodeEntry);
+	}
+	else
+	{
+			switch (splitPathToInodeEntry(pDirName, &parentDirectoryINodeEntry, &endFileINodeEntry, endFileName))
+		{
+			case -1:
+			case 0:
+				printf("Le dossier %s est inexistant! \n",pDirName);
+				return -1; //Invalid path
+			case 1:
+				break; //Continue
+		}
+	}
+
+	if (InodeEntryIsDirectory(&endFileINodeEntry) != 0)
+	{
+		printf("%s n'est pas un dossier! \n",pDirName);
+		return -2; // Not a dir.
+	}
+
+	char DataBlockDirEntry[BLOCK_SIZE];
+	ReadBlock(endFileINodeEntry.Block[0], DataBlockDirEntry);
+	DirEntry* pDRepertoireACopier = (DirEntry *) DataBlockDirEntry;
+	DirEntry tempEntry;
+	int hasChanged = 0;
+	// Bubble sort
+	for(int i = 2; i < endFileINodeEntry.iNodeStat.st_size/sizeof(DirEntry); i++){
+		for(int j = endFileINodeEntry.iNodeStat.st_size/sizeof(DirEntry)-1; j > i; j--){
+			int solved = 0;
+			for(int k = 0; solved != 1 && k < min(strlen(pDRepertoireACopier[i].Filename), strlen(pDRepertoireACopier[j].Filename)); k++)
+			{
+				char letterI = pDRepertoireACopier[i].Filename[k];
+				char letterJ = pDRepertoireACopier[j].Filename[k];
+
+				//Considérer les minuscules comme des majuscules
+				if (letterI >= 'a' && letterI <= 'z') {
+					letterI = letterI - 'a' + 'A';
+				}
+				if (letterJ >= 'a' && letterJ <= 'z') {
+					letterJ = letterJ - 'a' + 'A';
+				}
+
+				if (letterI > letterJ) {
+					tempEntry = pDRepertoireACopier[j];
+					pDRepertoireACopier[j] = pDRepertoireACopier[i];
+					pDRepertoireACopier[i] = tempEntry;
+					solved = 1;
+					hasChanged = 1;
+				} else if (letterI < letterJ) {
+					solved = 1;
+				}
+			}
+			if (solved == 0 && (strlen(pDRepertoireACopier[i].Filename) > strlen(pDRepertoireACopier[j].Filename))) {
+				// Fichier même texte, mais un plus long.
+				tempEntry = pDRepertoireACopier[j];
+				pDRepertoireACopier[j] = pDRepertoireACopier[i];
+				pDRepertoireACopier[i] = tempEntry;
+				solved = 1;
+				hasChanged = 1;
+			}
+		}
+	}
+	if (hasChanged == 1) {
+		WriteBlock(endFileINodeEntry.Block[0], (char*) pDRepertoireACopier);
+	}
+	return hasChanged;
+
 }

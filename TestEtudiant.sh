@@ -272,7 +272,46 @@ echo
 echo "--------------------------------------------------------------------"
 echo "            Tester la fonction perso"
 echo "--------------------------------------------------------------------"
-./ufs perso
+
+echo "Création de dossiers dans la racine"
+./ufs mkdir /bb
+./ufs mkdir /aabdgdfg
+./ufs create /.aba
+./ufs mkdir /babdd
+./ufs create /abagg
+
+echo "Visualisation de la racine avant"
+./ufs ls /
+
+echo "Trie de la racine (valide)"
+./ufs sort /
+
+echo "Visualisation de la racine après tri"
+./ufs ls /
+
+echo
+
+echo "Création de dossiers dans un sous-dossier"
+./ufs mkdir /bb/bb
+./ufs mkdir /bb/aabdgdfg
+./ufs create /bb/.aba
+./ufs mkdir /bb/babdd
+./ufs create /bb/abagg
+
+echo "Visualisation du sous-dossier avant"
+./ufs ls /bb
+
+echo "Trie du sous-dossier (valide)"
+./ufs sort /bb
+
+echo "Visualisation du sous-dossier après tri"
+./ufs ls /bb
+
+echo
 
 
+echo "Trie d'un fichier existant (non-valide)"
+./ufs sort /bb/.aba
+echo "Trie d'un fichier non-existant (non-valide)"
+./ufs sort /path/existe/pas.sad
 
