@@ -599,11 +599,6 @@ int RemoveFileFromDir(iNodeEntry* dirInode, iNodeEntry* fileInode, const char* f
 		return -2; // File not found in dir
 	}
 
-	if (InodeEntryIsDirectory(fileInode) == 0)
-	{
-		dirInode->iNodeStat.st_nlink--;
-	}
-
 	dirInode->iNodeStat.st_size -= sizeof(DirEntry);
 	fileInode->iNodeStat.st_nlink--;
 }
@@ -938,11 +933,14 @@ int bd_mkdir(const char *pDirName) {
 	endFolderInodeEntry.iNodeStat.st_blocks = 1;
 	endFolderInodeEntry.Block[0] = ReserveNewBlockNumber();
 
-
-	//Ajouter dans parent vers enfant.
-	if (AddFileInDir(ptr_parentDirectoryINodeEntry, ptr_endFolderInodeEntry, endFolderName) != 0)
+	//Si pas root
+	if (ptr_endFolderInodeEntry != ptr_parentDirectoryINodeEntry)
 	{
-		return -1; // Error setting the value.
+		//Ajouter dans parent vers enfant.
+		if (AddFileInDir(ptr_parentDirectoryINodeEntry, ptr_endFolderInodeEntry, endFolderName) != 0)
+		{
+			return -1; //Error setting the value.
+		}
 	}
 	//Ajouter lien sur soit même enfant.
 	if (AddFileInDir(ptr_endFolderInodeEntry, ptr_endFolderInodeEntry, ".") != 0)
@@ -1059,7 +1057,7 @@ int bd_rmdir(const char *pFilename) {
 
 	if (InodeEntryIsDirectory(&endFolderINodeEntry) != 0)
 	{
-		return -2; // Not a file.
+		return -2; // Not a dir.
 	}
 
 	if (NumberofDirEntry(endFolderINodeEntry.iNodeStat.st_size) != 2)
@@ -1068,6 +1066,7 @@ int bd_rmdir(const char *pFilename) {
 	}
 
 	RemoveFileFromDir(&parentDirectoryINodeEntry, &endFolderINodeEntry, endFolderName);
+	RemoveFileFromDir(&endFolderINodeEntry ,&parentDirectoryINodeEntry, "..");
 	FreeFile(&endFolderINodeEntry); //Libérer Inodes et blocs
 
 	writeINodeEntry(&parentDirectoryINodeEntry);
@@ -1104,18 +1103,26 @@ int bd_rename(const char *pFilename, const char *pDestFilename) {
 		case 1:
 			return -1; // Dest file already exists
 	}
+	iNodeEntry* ptr_srcParent = &srcParentDirectoryINodeEntry;
+	iNodeEntry* ptr_destParent = &destParentDirectoryINodeEntry;
+	if (ptr_srcParent->iNodeStat.st_ino == ptr_destParent->iNodeStat.st_ino)
+	{
+		//Si c'est le même parent, lier les pointeurs.
+		ptr_srcParent = ptr_destParent;
+	}
+
+	AddFileInDir(ptr_destParent, &srcEndFileINodeEntry, destEndFileName);
+	RemoveFileFromDir(ptr_srcParent, &srcEndFileINodeEntry, srcEndFileName);
 
 	if (InodeEntryIsDirectory(&srcEndFileINodeEntry) == 0)
 	{
-		RemoveFileFromDir(&srcEndFileINodeEntry, &srcParentDirectoryINodeEntry, "..");
-		AddFileInDir(&srcEndFileINodeEntry, &destParentDirectoryINodeEntry, "..");
+		RemoveFileFromDir(&srcEndFileINodeEntry, ptr_srcParent, "..");
+		AddFileInDir(&srcEndFileINodeEntry, ptr_destParent, "..");
 	}
-	AddFileInDir(&destParentDirectoryINodeEntry, &srcEndFileINodeEntry, destEndFileName);
-	RemoveFileFromDir(&srcParentDirectoryINodeEntry, &srcEndFileINodeEntry, srcEndFileName);
 
 	writeINodeEntry(&srcEndFileINodeEntry);
-	writeINodeEntry(&srcParentDirectoryINodeEntry);
-	writeINodeEntry(&destParentDirectoryINodeEntry);
+	writeINodeEntry(ptr_srcParent);
+	writeINodeEntry(ptr_destParent);
 
 	return 0;
 }
@@ -1196,12 +1203,10 @@ int bd_formatdisk() {
 	{
 		initialFreeBlock[i] = 1;
 	}
-
-	initialFreeBlock[FREE_BLOCK_BITMAP] = 0; 
-	initialFreeBlock[FREE_INODE_BITMAP] = 0;
-	for(int i = BASE_BLOCK_INODE; i <= MAX_BLOCK_INODE; i++)
+	//Réserver les blocs des systems.
+	for(int i = 0; i <= MAX_BLOCK_INODE; i++)
 	{
-		initialFreeBlock[i] = 0; //Réserver les blocs des inodes.
+		initialFreeBlock[i] = 0; 
 	}
 	WriteBlock(FREE_BLOCK_BITMAP, initialFreeBlock);
 
@@ -1210,7 +1215,7 @@ int bd_formatdisk() {
 
 	bd_mkdir("/");
 
-	return 0;
+	return 1;
 }
 
 int bd_chmod(const char *pFilename, UINT16 st_mode) {
