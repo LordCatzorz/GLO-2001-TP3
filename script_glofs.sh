@@ -52,8 +52,8 @@ echo "ls"
 ls -lai
 
 echo
-echo "cat touchedFile >> touchedFile"
-cat touchedFile >> touchedFile
+echo "cat whoami >> touchedFile"
+whoami >> touchedFile
 
 echo
 echo "ls"
@@ -76,8 +76,16 @@ echo "ls"
 ls -lai
 
 echo
-echo "cp newfile ../copy"
-cp newfile ../copy
+echo "cp newfile copy1"
+cp newfile copy1
+
+echo
+echo "ls"
+ls -lai
+
+echo
+echo "cp newfile ../copy2"
+cp newfile ../copy2
 
 echo
 echo "ls"
@@ -116,14 +124,21 @@ echo "ls"
 ls -lai
 
 echo
-echo "mv . /movedDir"
-mv . /movedDir
+echo "cd .."
+cd ..
+
+echo
+echo "mv ./doc/test /tmp/glo/movedDir"
+mv ./doc/test /tmp/glo/movedDir
 
 echo
 echo "ls"
 ls -lai
 
+echo
+echo "ls ./doc"
+ls ./doc -lai
 
 echo
-echo "ls /"
-ls -lai
+echo "ls ./movedDir"
+ls ./movedDir -lai
