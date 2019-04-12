@@ -111,7 +111,7 @@ void printiNode(iNodeEntry iNode) {
 	Elle retourne
 		0 si c'est un fichier.
 	 	-1 sinon.*/
-int InodeEntryIsFile(iNodeEntry* node)
+int InodeEntryIsFile(const iNodeEntry* node)
 {
 	if (node->iNodeStat.st_mode & G_IFREG)
 	{
@@ -127,7 +127,7 @@ int InodeEntryIsFile(iNodeEntry* node)
 	Elle retourne
 		0 si c'est un répertoire.
 	 	-1 sinon.*/
-int InodeEntryIsDirectory(iNodeEntry* node)
+int InodeEntryIsDirectory(const iNodeEntry* node)
 {
 	if (node->iNodeStat.st_mode & G_IFDIR)
 	{
@@ -743,6 +743,37 @@ int remapInodeInDir(const iNodeEntry* parentInode, const char* filename, iNodeEn
 	return found;
 }
 
+/* Cette fonction rechercher si un iNode(searched) de répertoire est dans les parents(et lui même)
+	d'un autre inode(base)
+	Cette fonction retourne :
+		 1 si trouvé
+		 0 si pas trouvé jusqu'à la racine
+		-1 si ce ne sont pas des répertoires.*/
+int IsInodeParentOfINode(const iNodeEntry* baseInode, const iNodeEntry* searchedInode)
+{
+	if(baseInode->iNodeStat.st_ino == searchedInode->iNodeStat.st_ino)
+	{
+		return 1; // Found
+	}
+
+	if (baseInode->iNodeStat.st_ino == ROOT_INODE)
+	{
+		return 0; // Not found.
+	}
+
+	if (InodeEntryIsDirectory(baseInode) != 0 || InodeEntryIsDirectory(searchedInode) != 0)
+	{
+		return -1; // Are not directory
+	}
+	UINT16 parentINodeNumber;
+	getFileInodeNumberFromDirectoryINode(baseInode, "..", &parentINodeNumber);
+
+	iNodeEntry newBaseInode;
+	getINodeEntryFromINodeNumber(parentINodeNumber, &newBaseInode);
+
+	return IsInodeParentOfINode(&newBaseInode, searchedInode);
+}
+
 /* ----------------------------------------------------------------------------------------
 	C'est votre partie, bon succès!
 	3e6a98197487be5b26d0e4ec2051411f
@@ -1136,10 +1167,7 @@ int bd_rmdir(const char *pFilename) {
 }
 
 int bd_rename(const char *pFilename, const char *pDestFilename) {
-	if(strncmp(pFilename, pDestFilename, strlen(pFilename)) == 0 && (countCharInString(pFilename, '/') < countCharInString(pDestFilename, '/')))
-	{
-		return -1; // Ajout récursif
-	}
+
 	iNodeEntry srcParentDirectoryINodeEntry;
 	iNodeEntry srcEndFileINodeEntry;
 	char srcEndFileName[FILENAME_SIZE];
@@ -1164,8 +1192,20 @@ int bd_rename(const char *pFilename, const char *pDestFilename) {
 		case 1:
 			return -1; // Dest file already exists
 	}
+
+	switch (IsInodeParentOfINode(&destParentDirectoryINodeEntry, &srcEndFileINodeEntry))
+	{
+		case 1:
+			return -1; //Recursive path
+		case 0:
+			break; //Continue
+		case -1:
+			break; //Not directories.
+	}
+
 	iNodeEntry* ptr_srcParent = &srcParentDirectoryINodeEntry;
 	iNodeEntry* ptr_destParent = &destParentDirectoryINodeEntry;
+
 	if (ptr_srcParent->iNodeStat.st_ino == ptr_destParent->iNodeStat.st_ino)
 	{
 		//Si c'est le même parent, lier les pointeurs.
