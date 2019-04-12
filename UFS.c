@@ -5,6 +5,7 @@
 #include "disque.h"
 
 #define MAX_BLOCK_INODE ((BASE_BLOCK_INODE + (N_INODE_ON_DISK/NUM_INODE_PER_BLOCK)) -1)
+#define N_DIR_ENTRY_PER_BLOCK (BLOCK_SIZE/sizeof(DirEntry))
 
 // Quelques fonctions qui pourraient vous être utiles
 int NumberofDirEntry(int Size) {
@@ -136,6 +137,28 @@ int InodeEntryIsDirectory(iNodeEntry* node)
 	{
 		return -1;
 	}
+}
+
+int GetDirEntryFromINode(const iNodeEntry* parentInode, DirEntry** dirTable)
+{
+	UINT16 currentBlock = -1;
+	int numberOfEntry = NumberofDirEntry(parentInode->iNodeStat.st_size);
+	int numberOfEntryPerBlock = N_DIR_ENTRY_PER_BLOCK;
+	*dirTable = (DirEntry*)malloc(parentInode->iNodeStat.st_blocks * BLOCK_SIZE);
+
+	char dataRawBlock[BLOCK_SIZE];
+	for(UINT16 i = 0; i < parentInode->iNodeStat.st_blocks; i ++)
+	{
+		if (ReadBlock(parentInode->Block[i], dataRawBlock) > 0)
+		{
+			memcpy(dirTable[i*BLOCK_SIZE], dataRawBlock, BLOCK_SIZE);
+		}
+		else
+		{
+			return -1; //Bad read
+		}
+	}
+	return 1;
 }
 
 /* Cette fonction prendre en paramètre un numéro de block
@@ -682,6 +705,44 @@ int splitPathToInodeEntry(const char* pPath, iNodeEntry* parentINodeEntry, iNode
 	return 1;
 }
 
+int renameDirEntry(iNodeEntry* parentInode, char* currentFileName, char* newFileName)
+{
+	int found = 0;
+	DirEntry* dirTable;
+	GetDirEntryFromINode(parentInode, &dirTable);
+	for(int i = 0; (found == 0) && (i < NumberofDirEntry(parentInode->iNodeStat.st_size)); i++)
+	{
+		if (strcmp(dirTable[i].Filename, currentFileName) == 0)
+		{
+			strcpy(dirTable[i].Filename, newFileName);
+			writeDirBlockToBlockNumber(parentInode->Block[i / N_DIR_ENTRY_PER_BLOCK], &dirTable[i / N_DIR_ENTRY_PER_BLOCK]);
+			found = 1;
+		}
+	}
+	free(dirTable);
+	return found;
+}
+
+int remapInodeInDir(const iNodeEntry* parentInode, const char* filename, iNodeEntry* oldInode, iNodeEntry* newiNode)
+{
+	int found = 0;
+	DirEntry* dirTable;
+	GetDirEntryFromINode(parentInode, &dirTable);
+	for(int i = 0; (found == 0) && (i < NumberofDirEntry(parentInode->iNodeStat.st_size)); i++)
+	{
+		if (dirTable[i].iNode == oldInode->iNodeStat.st_ino)
+		{
+			oldInode->iNodeStat.st_nlink--;
+			newiNode->iNodeStat.st_nlink++;
+			dirTable[i].iNode = newiNode->iNodeStat.st_ino;
+			writeDirBlockToBlockNumber(parentInode->Block[i / N_DIR_ENTRY_PER_BLOCK], &dirTable[i / N_DIR_ENTRY_PER_BLOCK]);
+			found = 1;
+		}
+	}
+	free(dirTable);
+	return found;
+}
+
 /* ----------------------------------------------------------------------------------------
 	C'est votre partie, bon succès!
 	3e6a98197487be5b26d0e4ec2051411f
@@ -1110,14 +1171,14 @@ int bd_rename(const char *pFilename, const char *pDestFilename) {
 		//Si c'est le même parent, lier les pointeurs.
 		ptr_srcParent = ptr_destParent;
 	}
-
 	AddFileInDir(ptr_destParent, &srcEndFileINodeEntry, destEndFileName);
 	RemoveFileFromDir(ptr_srcParent, &srcEndFileINodeEntry, srcEndFileName);
 
 	if (InodeEntryIsDirectory(&srcEndFileINodeEntry) == 0)
 	{
-		RemoveFileFromDir(&srcEndFileINodeEntry, ptr_srcParent, "..");
-		AddFileInDir(&srcEndFileINodeEntry, ptr_destParent, "..");
+		remapInodeInDir(&srcEndFileINodeEntry, "..", ptr_srcParent, ptr_destParent);
+		// RemoveFileFromDir(&srcEndFileINodeEntry, ptr_srcParent, "..");
+		// AddFileInDir(&srcEndFileINodeEntry, ptr_destParent, "..");
 	}
 
 	writeINodeEntry(&srcEndFileINodeEntry);
