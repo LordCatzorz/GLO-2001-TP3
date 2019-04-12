@@ -743,35 +743,35 @@ int remapInodeInDir(const iNodeEntry* parentInode, const char* filename, iNodeEn
 	return found;
 }
 
-/* Cette fonction rechercher si un iNode(searched) de répertoire est dans les parents(et lui même)
-	d'un autre inode(base)
+/* Cette fonction rechercher si un iNode(needle) de répertoire est dans les parents(et lui même)
+	d'un autre inode(hay)
 	Cette fonction retourne :
 		 1 si trouvé
 		 0 si pas trouvé jusqu'à la racine
 		-1 si ce ne sont pas des répertoires.*/
-int IsInodeParentOfINode(const iNodeEntry* baseInode, const iNodeEntry* searchedInode)
+int IsInodeParentOfINode(const iNodeEntry* hayInode, const iNodeEntry* needleInode)
 {
-	if(baseInode->iNodeStat.st_ino == searchedInode->iNodeStat.st_ino)
+	if(hayInode->iNodeStat.st_ino == needleInode->iNodeStat.st_ino)
 	{
 		return 1; // Found
 	}
 
-	if (baseInode->iNodeStat.st_ino == ROOT_INODE)
+	if (hayInode->iNodeStat.st_ino == ROOT_INODE)
 	{
 		return 0; // Not found.
 	}
 
-	if (InodeEntryIsDirectory(baseInode) != 0 || InodeEntryIsDirectory(searchedInode) != 0)
+	if (InodeEntryIsDirectory(hayInode) != 0 || InodeEntryIsDirectory(needleInode) != 0)
 	{
 		return -1; // Are not directory
 	}
 	UINT16 parentINodeNumber;
-	getFileInodeNumberFromDirectoryINode(baseInode, "..", &parentINodeNumber);
+	getFileInodeNumberFromDirectoryINode(hayInode, "..", &parentINodeNumber);
 
-	iNodeEntry newBaseInode;
-	getINodeEntryFromINodeNumber(parentINodeNumber, &newBaseInode);
+	iNodeEntry newHayInode;
+	getINodeEntryFromINodeNumber(parentINodeNumber, &newHayInode);
 
-	return IsInodeParentOfINode(&newBaseInode, searchedInode);
+	return IsInodeParentOfINode(&newHayInode, needleInode);
 }
 
 /* ----------------------------------------------------------------------------------------
