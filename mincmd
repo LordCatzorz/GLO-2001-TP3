@@ -1,0 +1,37 @@
+
+cd /tmp/glo
+ls -lai
+cd ./doc
+ls -lai
+cd ..
+mkdir ./doc/test
+ls -lai ./doc/test
+cd ./doc/test
+ls -lai
+touch touchedFile
+ls -lai
+whoami >> touchedFile
+ls -lai
+whoami >> touchedFile
+ls -lai
+cat touchedFile > newfile
+ls -lai
+rm touchedFile
+ls -lai
+cp newfile copy1
+ls -lai
+cp newfile ../copy2
+ls -lai
+ls -lai ..
+mv newfile ../moved
+ls -lai
+ls -lai ..
+cd ..
+ls -lai
+ln moved linked
+ls -lai
+cd ..
+mv ./doc/test /tmp/glo/movedDir
+ls -lai
+ls ./doc -lai
+ls ./movedDir -lai
