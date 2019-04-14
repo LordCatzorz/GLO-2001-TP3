@@ -139,28 +139,36 @@ int InodeEntryIsDirectory(const iNodeEntry* node)
 	}
 }
 
-int GetDirEntryFromINode(const iNodeEntry* parentInode, DirEntry** dirTable)
+/* Cette fonction prendre un iNodeEntry.
+	Elle retourne 
+	-2 si ce n'est pas un répertoire
+	-1 si problème de lecture (must free dirTable and internal dirEntry)
+	 0 Si ok (Must free dirTableand internal dirEntry)
+*/
+int GetDirEntryFromINode(const iNodeEntry* parentInode, DirEntry* dirTable)
 {
+	if (InodeEntryIsDirectory(parentInode) != 0)
+	{
+		return -2; // Not a directory
+	}
 	UINT16 currentBlock = -1;
 	int numberOfEntry = NumberofDirEntry(parentInode->iNodeStat.st_size);
 	int numberOfEntryPerBlock = N_DIR_ENTRY_PER_BLOCK;
-	*dirTable = (DirEntry*)malloc(parentInode->iNodeStat.st_blocks * BLOCK_SIZE);
 
 	char dataRawBlock[BLOCK_SIZE];
 	for(UINT16 i = 0; i < parentInode->iNodeStat.st_blocks; i ++)
 	{
 		if (ReadBlock(parentInode->Block[i], dataRawBlock) > 0)
 		{
-			memcpy(dirTable[i*BLOCK_SIZE], dataRawBlock, BLOCK_SIZE);
-		}
-		else
-		{
-			return -1; //Bad read
+			DirEntry* tmpDirEntry = (DirEntry*) dataRawBlock;
+			UINT16 startI = (i)*numberOfEntryPerBlock;
+			UINT16 nbDirEntryToCopy = min(numberOfEntryPerBlock, numberOfEntry - startI);
+			memcpy(&(dirTable[startI]), tmpDirEntry, nbDirEntryToCopy * sizeof(DirEntry));
 		}
 	}
-	return 1;
-}
 
+	return 0;
+}
 /* Cette fonction prendre en paramètre un numéro de block
    Elle retourne:
      -1 Si problème de lecture du bloc.
@@ -183,7 +191,7 @@ int getDirBlockFromBlockNumber(const UINT16 blockNumber, DirEntry** outDirTable)
 	}
 }
 
-int writeDirBlockToBlockNumber(const UINT16 blockNumber, DirEntry* dirTable)
+int writeDirBlockToBlockNumber(const UINT16 blockNumber, const DirEntry* dirTable)
 {
 	if ((blockNumber > MAX_BLOCK_INODE) && (blockNumber <= N_BLOCK_ON_DISK))
 	{
@@ -195,6 +203,16 @@ int writeDirBlockToBlockNumber(const UINT16 blockNumber, DirEntry* dirTable)
 		}
 	} else {
 		return -2; // Out of bound blockNumber.
+	}
+}
+
+int writeDirTable(const DirEntry* dirTable, iNodeEntry* dirInode)
+{
+	UINT16 nbBlock = dirInode->iNodeStat.st_blocks;
+	for (UINT16 i = 0; i < nbBlock; i++)
+	{
+		UINT16 blockNumber = dirInode->Block[i];
+		writeDirBlockToBlockNumber(blockNumber, &dirTable[i * N_DIR_ENTRY_PER_BLOCK]);
 	}
 }
 
@@ -317,27 +335,26 @@ int getINodeEntryFromINodeNumber(const UINT16 iNodeNumber, iNodeEntry* outiNodeE
         0 Si le fichier est trouvé et outINodeNumber contient l'inode de ce fichier.*/
 int getFileInodeNumberFromDirectoryINode(const iNodeEntry* parentInode, const char* fileString, UINT16* outINodeNumber)
 {
-	DirEntry* dirEntryTable;
-	switch (getDirBlockFromBlockNumber(parentInode->Block[0], &dirEntryTable))
+	int numberOfChildren = NumberofDirEntry(parentInode->iNodeStat.st_size);
+	DirEntry dirEntryTable[numberOfChildren];
+	switch (GetDirEntryFromINode(parentInode, dirEntryTable))
 	{
 		case -1:
-		case -2:
 			return -2; // Invalid read
-		default:
+		case -2:
+			return -2; //Not a dir
+		case 0:
 			break;//Continue
 	}
 
-	int numberOfChildren = NumberofDirEntry(parentInode->iNodeStat.st_size);
 
 	for (size_t i = 0; i < numberOfChildren; i++)
 	{
 		if (strcmp(dirEntryTable[i].Filename, fileString) ==0) {
 			*outINodeNumber = dirEntryTable[i].iNode;
-			free(dirEntryTable);
 			return 0;
 		}
 	}
-	free(dirEntryTable);
 	return -1;
 }
 
@@ -550,7 +567,7 @@ UINT16 ReserveNewBlockNumber(){
 }
 
 
-/* cette fnction prend un iNode de répertoire, un iNode de fichier et un nom de fichier.
+/* Cette fonction prend un iNode de répertoire, un iNode de fichier et un nom de fichier.
 	Elle va modifier la mémoire associé au iNode de répertoire pour ajouter ce nouveau fichier.
 	Elle va aussi modifier les pointeurs d'inode en paramètre, mais ne va pas les enregistrer.
 	Elle retourne
@@ -558,27 +575,30 @@ UINT16 ReserveNewBlockNumber(){
 		0  sinon.
 */
 int AddFileInDir(iNodeEntry* dirInode, iNodeEntry* fileInode, const char* endFileName) {
-	DirEntry* dirEntryTable;
-	if (getDirBlockFromBlockNumber(dirInode->Block[0], &dirEntryTable) != 0)
+
+	UINT16 numberDirEntry = NumberofDirEntry(dirInode->iNodeStat.st_size);
+	DirEntry dirEntryTable[numberDirEntry + 1];
+	switch (GetDirEntryFromINode(dirInode, dirEntryTable))
 	{
-		return -1; // Problem reading block.
+		case -1:
+		case -2:
+			return -1; // Problem reading block., Not a dir
+		case 0:
+			break; //continue
 	}
 	
-	UINT16 position = NumberofDirEntry(dirInode->iNodeStat.st_size);
-	dirEntryTable[position].iNode = fileInode->iNodeStat.st_ino;
-	strcpy(dirEntryTable[position].Filename, endFileName);
+	dirEntryTable[numberDirEntry].iNode = fileInode->iNodeStat.st_ino;
+	strcpy(dirEntryTable[numberDirEntry].Filename, endFileName);
 
 	dirInode->iNodeStat.st_size += sizeof(DirEntry);
 	fileInode->iNodeStat.st_nlink ++;
 
 	// Écrire les données dans le block du répertoire.
-	if (writeDirBlockToBlockNumber(dirInode->Block[0], dirEntryTable) != 0)
+	if (writeDirTable(dirInode, dirEntryTable) != 0)
 	{
-		free(dirEntryTable);
 		return -1; // Problem writing block.
 	};
 
-	free(dirEntryTable);
 	return 0;
 }
 
@@ -592,12 +612,12 @@ int AddFileInDir(iNodeEntry* dirInode, iNodeEntry* fileInode, const char* endFil
 */
 int RemoveFileFromDir(iNodeEntry* dirInode, iNodeEntry* fileInode, const char* fileName)
 {
-	DirEntry* dirEntryTable;
-	if (getDirBlockFromBlockNumber(dirInode->Block[0], &dirEntryTable) != 0)
+	UINT16 nbDir = NumberofDirEntry(dirInode->iNodeStat.st_size);
+	DirEntry dirEntryTable[nbDir];
+	if (GetDirEntryFromINode(dirInode, dirEntryTable) != 0)
 	{
 		return -1; // Problem reading block.
 	}
-	UINT16 nbDir = NumberofDirEntry(dirInode->iNodeStat.st_size);
 
 	int trouve = 0;
 	for(UINT16 iDir = 0; iDir < NumberofDirEntry(dirInode->iNodeStat.st_size); iDir++)
@@ -611,9 +631,8 @@ int RemoveFileFromDir(iNodeEntry* dirInode, iNodeEntry* fileInode, const char* f
 		}
 	} 
 	// Écrire les données dans le block du répertoire.
-	if (writeDirBlockToBlockNumber(dirInode->Block[0], dirEntryTable) != 0)
+	if (writeDirTable(dirInode, dirEntryTable) != 0)
 	{
-		free(dirEntryTable);
 		return -1; // Problem writing block.
 	};
 
@@ -708,8 +727,9 @@ int splitPathToInodeEntry(const char* pPath, iNodeEntry* parentINodeEntry, iNode
 int renameDirEntry(iNodeEntry* parentInode, char* currentFileName, char* newFileName)
 {
 	int found = 0;
-	DirEntry* dirTable;
-	GetDirEntryFromINode(parentInode, &dirTable);
+	UINT16 nbDir = NumberofDirEntry(parentInode->iNodeStat.st_size);
+	DirEntry dirTable[nbDir];
+	GetDirEntryFromINode(parentInode, dirTable);
 	for(int i = 0; (found == 0) && (i < NumberofDirEntry(parentInode->iNodeStat.st_size)); i++)
 	{
 		if (strcmp(dirTable[i].Filename, currentFileName) == 0)
@@ -719,15 +739,15 @@ int renameDirEntry(iNodeEntry* parentInode, char* currentFileName, char* newFile
 			found = 1;
 		}
 	}
-	free(dirTable);
 	return found;
 }
 
 int remapInodeInDir(const iNodeEntry* parentInode, const char* filename, iNodeEntry* oldInode, iNodeEntry* newiNode)
 {
 	int found = 0;
-	DirEntry* dirTable;
-	GetDirEntryFromINode(parentInode, &dirTable);
+	UINT16 nbDir = NumberofDirEntry(parentInode->iNodeStat.st_size);
+	DirEntry dirTable[nbDir];
+	GetDirEntryFromINode(parentInode, dirTable);
 	for(int i = 0; (found == 0) && (i < NumberofDirEntry(parentInode->iNodeStat.st_size)); i++)
 	{
 		if (dirTable[i].iNode == oldInode->iNodeStat.st_ino)
@@ -739,7 +759,6 @@ int remapInodeInDir(const iNodeEntry* parentInode, const char* filename, iNodeEn
 			found = 1;
 		}
 	}
-	free(dirTable);
 	return found;
 }
 
@@ -1244,17 +1263,26 @@ int bd_readdir(const char *pDirLocation, DirEntry **ppListeFichiers) {
 	{
 		return -1;
 	}
+	UINT16 nbDir = NumberofDirEntry(directoryINodeEntry.iNodeStat.st_size);
+	DirEntry dirTable[nbDir];
 
-	if(InodeEntryIsDirectory(&directoryINodeEntry) == -1)
+	switch (GetDirEntryFromINode(&directoryINodeEntry, dirTable))
 	{
-		return -1; // Not a directory
+		case -2:
+			return -1; //Not a dir
+		case -1:
+			return -1; //Read problem
+		case 0:
+			break;
 	}
 
-	if (getDirBlockFromBlockNumber(directoryINodeEntry.Block[0], ppListeFichiers) != 0)
+	(*ppListeFichiers) = malloc(sizeof(DirEntry) * nbDir);
+	for(int i = 0; i < nbDir; i++)
 	{
-		return -1; // Problem reading block.
+		memcpy(&(*ppListeFichiers)[i], &dirTable[i], sizeof(DirEntry));
 	}
-	return NumberofDirEntry(directoryINodeEntry.iNodeStat.st_size);
+
+	return nbDir;
 }
 
 int bd_truncate(const char *pFilename, int NewSize) {
