@@ -33,6 +33,8 @@ int countCharInString(const char* str, const char matchChar)
 	return cnt;
 }
 
+int compareDirEntry(const void*, const void*); //Foward Declaration
+
 /* Cette fonction va extraire le repertoire d'une chemin d'acces complet, et le copier
    dans pDir.  Par exemple, si le chemin fourni pPath="/doc/tmp/a.txt", cette fonction va
    copier dans pDir le string "/doc/tmp" . Si le chemin fourni est pPath="/a.txt", la fonction
@@ -212,8 +214,12 @@ int writeDirTable(const DirEntry* dirTable, iNodeEntry* dirInode)
 	for (UINT16 i = 0; i < nbBlock; i++)
 	{
 		UINT16 blockNumber = dirInode->Block[i];
-		writeDirBlockToBlockNumber(blockNumber, &dirTable[i * N_DIR_ENTRY_PER_BLOCK]);
+		if (writeDirBlockToBlockNumber(blockNumber, &dirTable[i * N_DIR_ENTRY_PER_BLOCK]) != 0)
+		{
+			return -1;
+		};
 	}
+	return 0;
 }
 
 /* Cette contion prendre en paramètre un numéro de block
@@ -594,7 +600,7 @@ int AddFileInDir(iNodeEntry* dirInode, iNodeEntry* fileInode, const char* endFil
 	fileInode->iNodeStat.st_nlink ++;
 
 	// Écrire les données dans le block du répertoire.
-	if (writeDirTable(dirInode, dirEntryTable) != 0)
+	if (writeDirTable(dirEntryTable, dirInode) != 0)
 	{
 		return -1; // Problem writing block.
 	};
@@ -630,11 +636,6 @@ int RemoveFileFromDir(iNodeEntry* dirInode, iNodeEntry* fileInode, const char* f
 			trouve = 1;
 		}
 	} 
-	// Écrire les données dans le block du répertoire.
-	if (writeDirTable(dirInode, dirEntryTable) != 0)
-	{
-		return -1; // Problem writing block.
-	};
 
 	if (trouve == 0)
 	{
@@ -643,6 +644,15 @@ int RemoveFileFromDir(iNodeEntry* dirInode, iNodeEntry* fileInode, const char* f
 
 	dirInode->iNodeStat.st_size -= sizeof(DirEntry);
 	fileInode->iNodeStat.st_nlink--;
+
+	// Écrire les données dans le block du répertoire.
+	if (writeDirTable(dirEntryTable, dirInode) != 0)
+	{
+		return -1; // Problem writing block.
+	};
+
+	return 0;
+
 }
 
 /*
@@ -1386,6 +1396,8 @@ int bd_chmod(const char *pFilename, UINT16 st_mode) {
 	writeINodeEntry(&fileNodeEntry);
 }
 
+
+unsigned int _reservebd_fct_perso_changedMade = 0;
 /* Cette fonction va réordonner le répertoire en ordre alphabétique 
 	retourne 
 		0 si aucun changement
@@ -1396,7 +1408,7 @@ int bd_fct_perso(const char* pDirName){ //ajuster aussi les paramètres
 	iNodeEntry parentDirectoryINodeEntry; //Unused
 	iNodeEntry endFileINodeEntry;
 	char endFileName[FILENAME_SIZE];//Unused
-
+	
 	if(strcmp(pDirName, "/") == 0)
 	{
 		 getINodeEntryFromINodeNumber(ROOT_INODE, &endFileINodeEntry);
@@ -1420,51 +1432,48 @@ int bd_fct_perso(const char* pDirName){ //ajuster aussi les paramètres
 		return -2; // Not a dir.
 	}
 
-	char DataBlockDirEntry[BLOCK_SIZE];
-	ReadBlock(endFileINodeEntry.Block[0], DataBlockDirEntry);
-	DirEntry* pDRepertoireACopier = (DirEntry *) DataBlockDirEntry;
-	DirEntry tempEntry;
-	int hasChanged = 0;
-	// Bubble sort
-	for(int i = 2; i < endFileINodeEntry.iNodeStat.st_size/sizeof(DirEntry); i++){
-		for(int j = endFileINodeEntry.iNodeStat.st_size/sizeof(DirEntry)-1; j > i; j--){
-			int solved = 0;
-			for(int k = 0; solved != 1 && k < min(strlen(pDRepertoireACopier[i].Filename), strlen(pDRepertoireACopier[j].Filename)); k++)
-			{
-				char letterI = pDRepertoireACopier[i].Filename[k];
-				char letterJ = pDRepertoireACopier[j].Filename[k];
+	UINT16 nbDir = NumberofDirEntry(endFileINodeEntry.iNodeStat.st_size);
+	DirEntry dirTable[nbDir];
+	GetDirEntryFromINode(&endFileINodeEntry, dirTable);
+	_reservebd_fct_perso_changedMade = 0;
+	qsort(&dirTable[0], nbDir, sizeof(DirEntry), compareDirEntry);
 
-				//Considérer les minuscules comme des majuscules
-				if (letterI >= 'a' && letterI <= 'z') {
-					letterI = letterI - 'a' + 'A';
-				}
-				if (letterJ >= 'a' && letterJ <= 'z') {
-					letterJ = letterJ - 'a' + 'A';
-				}
+	writeDirTable(dirTable, &endFileINodeEntry);
 
-				if (letterI > letterJ) {
-					tempEntry = pDRepertoireACopier[j];
-					pDRepertoireACopier[j] = pDRepertoireACopier[i];
-					pDRepertoireACopier[i] = tempEntry;
-					solved = 1;
-					hasChanged = 1;
-				} else if (letterI < letterJ) {
-					solved = 1;
-				}
-			}
-			if (solved == 0 && (strlen(pDRepertoireACopier[i].Filename) > strlen(pDRepertoireACopier[j].Filename))) {
-				// Fichier même texte, mais un plus long.
-				tempEntry = pDRepertoireACopier[j];
-				pDRepertoireACopier[j] = pDRepertoireACopier[i];
-				pDRepertoireACopier[i] = tempEntry;
-				solved = 1;
-				hasChanged = 1;
-			}
+	return (_reservebd_fct_perso_changedMade == 0 ? 0 : 1);
+}
+
+int compareDirEntry(const void* arg1, const void* arg2)
+{
+	DirEntry* lDir = (DirEntry*) arg1;
+	DirEntry* rDir = (DirEntry*) arg2;
+
+	int solved = 0;
+	for(int k = 0; solved != 1 && k < min(strlen(lDir->Filename), strlen(rDir->Filename)); k++)
+	{
+		char letterL = lDir->Filename[k];
+		char letterR = rDir->Filename[k];
+
+		//Considérer les minuscules comme des majuscules
+		if (letterL >= 'a' && letterL <= 'z') {
+			letterL = letterL - 'a' + 'A';
+		}
+		if (letterR >= 'a' && letterR <= 'z') {
+			letterR = letterR - 'a' + 'A';
+		}
+
+		if (letterL > letterR) {
+		_reservebd_fct_perso_changedMade = 1; //Will have to swap.
+			return 1; // R < L
+		} else if (letterL < letterR) {
+			return -1; // L < R
 		}
 	}
-	if (hasChanged == 1) {
-		WriteBlock(endFileINodeEntry.Block[0], (char*) pDRepertoireACopier);
+	// Fichier même texte, mais un plus long.
+	UINT16 diffLength = strlen(lDir->Filename) - strlen(rDir->Filename);
+	if (diffLength > 0)
+	{
+		_reservebd_fct_perso_changedMade = 1; //Will have to swap.
 	}
-	return hasChanged;
-
+	return diffLength;
 }
