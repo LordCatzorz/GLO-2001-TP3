@@ -599,6 +599,14 @@ int AddFileInDir(iNodeEntry* dirInode, iNodeEntry* fileInode, const char* endFil
 	dirInode->iNodeStat.st_size += sizeof(DirEntry);
 	fileInode->iNodeStat.st_nlink ++;
 
+
+	if ((dirInode->iNodeStat.st_blocks * N_DIR_ENTRY_PER_BLOCK) < (numberDirEntry + 1))
+	{
+		//Ajout d'un bloc
+		dirInode->Block[dirInode->iNodeStat.st_blocks] = ReserveNewBlockNumber();
+		dirInode->iNodeStat.st_blocks++;
+	}
+
 	// Écrire les données dans le block du répertoire.
 	if (writeDirTable(dirEntryTable, dirInode) != 0)
 	{
@@ -651,8 +659,14 @@ int RemoveFileFromDir(iNodeEntry* dirInode, iNodeEntry* fileInode, const char* f
 		return -1; // Problem writing block.
 	};
 
-	return 0;
+	if (((dirInode->iNodeStat.st_blocks - 1) * N_DIR_ENTRY_PER_BLOCK) >= (nbDir - 1))
+	{
+		//Retrait d'un bloc 
+		dirInode->iNodeStat.st_blocks--;
+		FreeBloc(dirInode->Block[dirInode->iNodeStat.st_blocks]);
+	}
 
+	return 0;
 }
 
 /*
