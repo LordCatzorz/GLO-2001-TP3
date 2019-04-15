@@ -78,7 +78,7 @@ int GetFilenameFromPath(const char *pPath, char *pFilename) {
 	char *pStrippedFilename = strrchr(pPath,'/');
 	if (pStrippedFilename!=NULL) {
 		++pStrippedFilename; // On avance pour passer le slash
-		if ((*pStrippedFilename) != '\0' && strlen(pStrippedFilename) <= FILENAME_SIZE) {
+		if ((*pStrippedFilename) != '\0' && strlen(pStrippedFilename) < FILENAME_SIZE) {
 			// On copie le nom de fichier trouve
 			strcpy(pFilename, pStrippedFilename);
 			return 1;
@@ -721,11 +721,6 @@ int splitPathToInodeEntry(const char* pPath, iNodeEntry* parentINodeEntry, iNode
 			break;
 		case -1:
 			return -1;
-	}
-
-	if (strlen(pEndFileName) > FILENAME_SIZE)
-	{
-		return -1; //filename too long
 	}
 	
 	// Check if folder exists.
