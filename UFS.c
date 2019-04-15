@@ -382,7 +382,7 @@ int getINodeNumberOfPath(const char *pPath, UINT16* iNodeNumber){
 		default:
 			break;//Continue
 	}
-	char dirString[strlen(pPath) - strlen(fileString)];
+	char dirString[FILENAME_MAX];
 
 	switch (GetDirFromPath(pPath, dirString))
 	{
@@ -708,7 +708,7 @@ int splitPath(const char* pPath, char* pParentPath, char* pFile) {
 int splitPathToInodeEntry(const char* pPath, iNodeEntry* parentINodeEntry, iNodeEntry* endFileINodeEntry, char* pEndFileName)
 {
 		// Check if path valid
-	char pathTo[strlen(pPath)];
+	char pathTo[FILENAME_MAX];
 
 	switch (splitPath(pPath, pathTo, pEndFileName))
 	{
