@@ -6,6 +6,7 @@
 
 #define MAX_BLOCK_INODE ((BASE_BLOCK_INODE + (N_INODE_ON_DISK/NUM_INODE_PER_BLOCK)) -1)
 #define N_DIR_ENTRY_PER_BLOCK (BLOCK_SIZE/sizeof(DirEntry))
+#define MAX_PATH_LENGTH 256
 
 // Quelques fonctions qui pourraient vous être utiles
 int NumberofDirEntry(int Size) {
@@ -382,7 +383,7 @@ int getINodeNumberOfPath(const char *pPath, UINT16* iNodeNumber){
 		default:
 			break;//Continue
 	}
-	char dirString[FILENAME_MAX];
+	char dirString[MAX_PATH_LENGTH];
 
 	switch (GetDirFromPath(pPath, dirString))
 	{
@@ -707,13 +708,13 @@ int splitPath(const char* pPath, char* pParentPath, char* pFile) {
 */
 int splitPathToInodeEntry(const char* pPath, iNodeEntry* parentINodeEntry, iNodeEntry* endFileINodeEntry, char* pEndFileName)
 {
-	if (strlen(pPath) > FILENAME_MAX) 
+	if (strlen(pPath) > MAX_PATH_LENGTH) 
 	{
 		return -1; //path to long
 	}
 
 		// Check if path valid
-	char pathTo[FILENAME_MAX];
+	char pathTo[MAX_PATH_LENGTH];
 
 	switch (splitPath(pPath, pathTo, pEndFileName))
 	{
