@@ -35,3 +35,38 @@ mv ./doc/test /tmp/glo/movedDir
 ls -lai
 ls ./doc -lai
 ls ./movedDir -lai
+cd ./movedDir
+ls -lai
+mkdir subDir
+ls -lai
+cd ./subDir
+ls -lai
+mkdir subsubDir
+ls -lai
+touch ./subsubDir/afile
+ls -lai
+ls -lai ./subsubDir
+cd /tmp/glo/
+ls -lai
+mv ./movedDir ./movedDir/././../movedDir/./subDir
+ls -lai
+rmdir ./movedDir
+ls -lai
+rmdir ./movedDir/subDir/subsubDir
+ls -lai ./movedDir/subDir/subsubDir
+rm ./movedDir/subDir/subsubDir/afile
+ls -lai ./movedDir/subDir/subsubDir
+rmdir ./movedDir/subDir/subsubDir
+ls -lai ./movedDir/subDir
+touch ./abcdefghijklmnopqrstuvwxyz
+ls -lai
+touch ./abcdefghijklmn
+ls -lai
+touch ./abcdefghijklm
+ls -lai
+rm ./abcdefghijklm
+ls -lai
+mkdir ./abcdefghijklmn
+ls -lai
+mkdir ./abcdefghijklm
+ls -lai

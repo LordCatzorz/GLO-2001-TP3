@@ -1,0 +1,287 @@
+etu1@ubuntu:/tmp/glo$ cd /tmp/glo
+etu1@ubuntu:/tmp/glo$ ls -lai
+total 7
+     1 drwxrwx---  5 root root   96 Dec 31  1969 .
+393221 drwxrwxrwt 10 root root 4096 Apr 15 20:01 ..
+     4 drwxrwx---  2 root root   48 Dec 31  1969 Bonjour
+     7 -rwxrwx---  1 root root   29 Dec 31  1969 b.txt
+     2 drwxrwx---  3 root root   48 Dec 31  1969 doc
+     3 drwxrwx---  2 root root   32 Dec 31  1969 rep
+etu1@ubuntu:/tmp/glo$ cd ./doc
+etu1@ubuntu:/tmp/glo/doc$ ls -lai
+total 2
+2 drwxrwx--- 3 root root 48 Dec 31  1969 .
+1 drwxrwx--- 5 root root 96 Dec 31  1969 ..
+5 drwxrwx--- 3 root root 48 Dec 31  1969 tmp
+etu1@ubuntu:/tmp/glo/doc$ cd ..
+etu1@ubuntu:/tmp/glo$ mkdir ./doc/test
+etu1@ubuntu:/tmp/glo$ ls -lai ./doc/test
+total 1
+11 drwxrwx--- 2 root root 32 Dec 31  1969 .
+ 2 drwxrwx--- 4 root root 64 Dec 31  1969 ..
+etu1@ubuntu:/tmp/glo$ cd ./doc/test
+etu1@ubuntu:/tmp/glo/doc/test$ ls -lai
+total 1
+11 drwxrwx--- 2 root root 32 Dec 31  1969 .
+ 2 drwxrwx--- 4 root root 64 Dec 31  1969 ..
+etu1@ubuntu:/tmp/glo/doc/test$ touch touchedFile
+touch: setting times of 'touchedFile': Function not implemented
+etu1@ubuntu:/tmp/glo/doc/test$ ls -lai
+total 1
+11 drwxrwx--- 2 root root 48 Dec 31  1969 .
+ 2 drwxrwx--- 4 root root 64 Dec 31  1969 ..
+12 -rwxrwx--- 1 root root  0 Dec 31  1969 touchedFile
+etu1@ubuntu:/tmp/glo/doc/test$ whoami >> touchedFile
+etu1@ubuntu:/tmp/glo/doc/test$ ls -lai
+total 2
+11 drwxrwx--- 2 root root 48 Dec 31  1969 .
+ 2 drwxrwx--- 4 root root 64 Dec 31  1969 ..
+12 -rwxrwx--- 1 root root  5 Dec 31  1969 touchedFile
+etu1@ubuntu:/tmp/glo/doc/test$ whoami >> touchedFile
+etu1@ubuntu:/tmp/glo/doc/test$ ls -lai
+total 2
+11 drwxrwx--- 2 root root 48 Dec 31  1969 .
+ 2 drwxrwx--- 4 root root 64 Dec 31  1969 ..
+12 -rwxrwx--- 1 root root 10 Dec 31  1969 touchedFile
+etu1@ubuntu:/tmp/glo/doc/test$ cat touchedFile > newfile
+etu1@ubuntu:/tmp/glo/doc/test$ ls -lai
+total 2
+11 drwxrwx--- 2 root root 64 Dec 31  1969 .
+ 2 drwxrwx--- 4 root root 64 Dec 31  1969 ..
+13 -rwxrwx--- 1 root root 10 Dec 31  1969 newfile
+12 -rwxrwx--- 1 root root 10 Dec 31  1969 touchedFile
+etu1@ubuntu:/tmp/glo/doc/test$ rm touchedFile
+etu1@ubuntu:/tmp/glo/doc/test$ ls -lai
+total 2
+11 drwxrwx--- 2 root root 48 Dec 31  1969 .
+ 2 drwxrwx--- 4 root root 64 Dec 31  1969 ..
+13 -rwxrwx--- 1 root root 10 Dec 31  1969 newfile
+etu1@ubuntu:/tmp/glo/doc/test$ cp newfile copy1
+etu1@ubuntu:/tmp/glo/doc/test$ ls -lai
+total 2
+11 drwxrwx--- 2 root root 64 Dec 31  1969 .
+ 2 drwxrwx--- 4 root root 64 Dec 31  1969 ..
+14 -rwxrwx--- 1 root root 10 Dec 31  1969 copy1
+13 -rwxrwx--- 1 root root 10 Dec 31  1969 newfile
+etu1@ubuntu:/tmp/glo/doc/test$ cp newfile ../copy2
+etu1@ubuntu:/tmp/glo/doc/test$ ls -lai
+total 2
+11 drwxrwx--- 2 root root 64 Dec 31  1969 .
+ 2 drwxrwx--- 4 root root 80 Dec 31  1969 ..
+14 -rwxrwx--- 1 root root 10 Dec 31  1969 copy1
+13 -rwxrwx--- 1 root root 10 Dec 31  1969 newfile
+etu1@ubuntu:/tmp/glo/doc/test$ ls -lai ..
+total 3
+ 2 drwxrwx--- 4 root root 80 Dec 31  1969 .
+ 1 drwxrwx--- 5 root root 96 Dec 31  1969 ..
+15 -rwxrwx--- 1 root root 10 Dec 31  1969 copy2
+11 drwxrwx--- 2 root root 64 Dec 31  1969 test
+ 5 drwxrwx--- 3 root root 48 Dec 31  1969 tmp
+etu1@ubuntu:/tmp/glo/doc/test$ mv newfile ../moved
+etu1@ubuntu:/tmp/glo/doc/test$ ls -lai
+total 2
+11 drwxrwx--- 2 root root 48 Dec 31  1969 .
+ 2 drwxrwx--- 4 root root 96 Dec 31  1969 ..
+14 -rwxrwx--- 1 root root 10 Dec 31  1969 copy1
+etu1@ubuntu:/tmp/glo/doc/test$ ls -lai ..
+total 3
+ 2 drwxrwx--- 4 root root 96 Dec 31  1969 .
+ 1 drwxrwx--- 5 root root 96 Dec 31  1969 ..
+15 -rwxrwx--- 1 root root 10 Dec 31  1969 copy2
+13 -rwxrwx--- 1 root root 10 Dec 31  1969 moved
+11 drwxrwx--- 2 root root 48 Dec 31  1969 test
+ 5 drwxrwx--- 3 root root 48 Dec 31  1969 tmp
+etu1@ubuntu:/tmp/glo/doc/test$ cd ..
+etu1@ubuntu:/tmp/glo/doc$ ls -lai
+total 3
+ 2 drwxrwx--- 4 root root 96 Dec 31  1969 .
+ 1 drwxrwx--- 5 root root 96 Dec 31  1969 ..
+15 -rwxrwx--- 1 root root 10 Dec 31  1969 copy2
+13 -rwxrwx--- 1 root root 10 Dec 31  1969 moved
+11 drwxrwx--- 2 root root 48 Dec 31  1969 test
+ 5 drwxrwx--- 3 root root 48 Dec 31  1969 tmp
+etu1@ubuntu:/tmp/glo/doc$ ln moved linked
+etu1@ubuntu:/tmp/glo/doc$ ls -lai
+total 4
+ 2 drwxrwx--- 4 root root 112 Dec 31  1969 .
+ 1 drwxrwx--- 5 root root  96 Dec 31  1969 ..
+15 -rwxrwx--- 1 root root  10 Dec 31  1969 copy2
+13 -rwxrwx--- 2 root root  10 Dec 31  1969 linked
+13 -rwxrwx--- 2 root root  10 Dec 31  1969 moved
+11 drwxrwx--- 2 root root  48 Dec 31  1969 test
+ 5 drwxrwx--- 3 root root  48 Dec 31  1969 tmp
+etu1@ubuntu:/tmp/glo/doc$ cd ..
+etu1@ubuntu:/tmp/glo$ mv ./doc/test /tmp/glo/movedDir
+etu1@ubuntu:/tmp/glo$ ls -lai
+total 7
+     1 drwxrwx---  6 root root  112 Dec 31  1969 .
+393221 drwxrwxrwt 10 root root 4096 Apr 15 20:01 ..
+     4 drwxrwx---  2 root root   48 Dec 31  1969 Bonjour
+     7 -rwxrwx---  1 root root   29 Dec 31  1969 b.txt
+     2 drwxrwx---  3 root root   96 Dec 31  1969 doc
+    11 drwxrwx---  2 root root   48 Dec 31  1969 movedDir
+     3 drwxrwx---  2 root root   32 Dec 31  1969 rep
+etu1@ubuntu:/tmp/glo$ ls ./doc -lai
+total 3
+ 2 drwxrwx--- 3 root root  96 Dec 31  1969 .
+ 1 drwxrwx--- 6 root root 112 Dec 31  1969 ..
+15 -rwxrwx--- 1 root root  10 Dec 31  1969 copy2
+13 -rwxrwx--- 2 root root  10 Dec 31  1969 linked
+13 -rwxrwx--- 2 root root  10 Dec 31  1969 moved
+ 5 drwxrwx--- 3 root root  48 Dec 31  1969 tmp
+etu1@ubuntu:/tmp/glo$ ls ./movedDir -lai
+total 2
+11 drwxrwx--- 2 root root  48 Dec 31  1969 .
+ 1 drwxrwx--- 6 root root 112 Dec 31  1969 ..
+14 -rwxrwx--- 1 root root  10 Dec 31  1969 copy1
+etu1@ubuntu:/tmp/glo$ cd ./movedDir
+etu1@ubuntu:/tmp/glo/movedDir$ ls -lai
+total 2
+11 drwxrwx--- 2 root root  48 Dec 31  1969 .
+ 1 drwxrwx--- 6 root root 112 Dec 31  1969 ..
+14 -rwxrwx--- 1 root root  10 Dec 31  1969 copy1
+etu1@ubuntu:/tmp/glo/movedDir$ mkdir subDir
+etu1@ubuntu:/tmp/glo/movedDir$ ls -lai
+total 2
+11 drwxrwx--- 3 root root  64 Dec 31  1969 .
+ 1 drwxrwx--- 6 root root 112 Dec 31  1969 ..
+14 -rwxrwx--- 1 root root  10 Dec 31  1969 copy1
+16 drwxrwx--- 2 root root  32 Dec 31  1969 subDir
+etu1@ubuntu:/tmp/glo/movedDir$ cd ./subDir
+etu1@ubuntu:/tmp/glo/movedDir/subDir$ ls -lai
+total 1
+16 drwxrwx--- 2 root root 32 Dec 31  1969 .
+11 drwxrwx--- 3 root root 64 Dec 31  1969 ..
+etu1@ubuntu:/tmp/glo/movedDir/subDir$ mkdir subsubDir
+etu1@ubuntu:/tmp/glo/movedDir/subDir$ ls -lai
+total 2
+16 drwxrwx--- 3 root root 48 Dec 31  1969 .
+11 drwxrwx--- 3 root root 64 Dec 31  1969 ..
+17 drwxrwx--- 2 root root 32 Dec 31  1969 subsubDir
+etu1@ubuntu:/tmp/glo/movedDir/subDir$ touch ./subsubDir/afile
+touch: setting times of './subsubDir/afile': Function not implemented
+etu1@ubuntu:/tmp/glo/movedDir/subDir$ ls -lai
+total 2
+16 drwxrwx--- 3 root root 48 Dec 31  1969 .
+11 drwxrwx--- 3 root root 64 Dec 31  1969 ..
+17 drwxrwx--- 2 root root 48 Dec 31  1969 subsubDir
+etu1@ubuntu:/tmp/glo/movedDir/subDir$ ls -lai ./subsubDir
+total 1
+17 drwxrwx--- 2 root root 48 Dec 31  1969 .
+16 drwxrwx--- 3 root root 48 Dec 31  1969 ..
+18 -rwxrwx--- 1 root root  0 Dec 31  1969 afile
+etu1@ubuntu:/tmp/glo/movedDir/subDir$ cd /tmp/glo/
+etu1@ubuntu:/tmp/glo$ ls -lai
+total 7
+     1 drwxrwx---  6 root root  112 Dec 31  1969 .
+393221 drwxrwxrwt 10 root root 4096 Apr 15 20:01 ..
+     4 drwxrwx---  2 root root   48 Dec 31  1969 Bonjour
+     7 -rwxrwx---  1 root root   29 Dec 31  1969 b.txt
+     2 drwxrwx---  3 root root   96 Dec 31  1969 doc
+    11 drwxrwx---  3 root root   64 Dec 31  1969 movedDir
+     3 drwxrwx---  2 root root   32 Dec 31  1969 rep
+etu1@ubuntu:/tmp/glo$ mv ./movedDir ./movedDir/././../movedDir/./subDir
+mv: cannot move './movedDir' to a subdirectory of itself, './movedDir/././../movedDir/./subDir/movedDir'
+etu1@ubuntu:/tmp/glo$ ls -lai
+total 7
+     1 drwxrwx---  6 root root  112 Dec 31  1969 .
+393221 drwxrwxrwt 10 root root 4096 Apr 15 20:01 ..
+     4 drwxrwx---  2 root root   48 Dec 31  1969 Bonjour
+     7 -rwxrwx---  1 root root   29 Dec 31  1969 b.txt
+     2 drwxrwx---  3 root root   96 Dec 31  1969 doc
+    11 drwxrwx---  3 root root   64 Dec 31  1969 movedDir
+     3 drwxrwx---  2 root root   32 Dec 31  1969 rep
+etu1@ubuntu:/tmp/glo$ rmdir ./movedDir
+rmdir: failed to remove './movedDir': Directory not empty
+etu1@ubuntu:/tmp/glo$ ls -lai
+total 7
+     1 drwxrwx---  6 root root  112 Dec 31  1969 .
+393221 drwxrwxrwt 10 root root 4096 Apr 15 20:01 ..
+     4 drwxrwx---  2 root root   48 Dec 31  1969 Bonjour
+     7 -rwxrwx---  1 root root   29 Dec 31  1969 b.txt
+     2 drwxrwx---  3 root root   96 Dec 31  1969 doc
+    11 drwxrwx---  3 root root   64 Dec 31  1969 movedDir
+     3 drwxrwx---  2 root root   32 Dec 31  1969 rep
+etu1@ubuntu:/tmp/glo$ rmdir ./movedDir/subDir/subsubDir
+rmdir: failed to remove './movedDir/subDir/subsubDir': Directory not empty
+etu1@ubuntu:/tmp/glo$ ls -lai ./movedDir/subDir/subsubDir
+total 1
+17 drwxrwx--- 2 root root 48 Dec 31  1969 .
+16 drwxrwx--- 3 root root 48 Dec 31  1969 ..
+18 -rwxrwx--- 1 root root  0 Dec 31  1969 afile
+etu1@ubuntu:/tmp/glo$ rm ./movedDir/subDir/subsubDir/afile
+etu1@ubuntu:/tmp/glo$ ls -lai ./movedDir/subDir/subsubDir
+total 1
+17 drwxrwx--- 2 root root 32 Dec 31  1969 .
+16 drwxrwx--- 3 root root 48 Dec 31  1969 ..
+etu1@ubuntu:/tmp/glo$ rmdir ./movedDir/subDir/subsubDir
+etu1@ubuntu:/tmp/glo$ ls -lai ./movedDir/subDir
+total 1
+16 drwxrwx--- 2 root root 32 Dec 31  1969 .
+11 drwxrwx--- 3 root root 64 Dec 31  1969 ..
+etu1@ubuntu:/tmp/glo$ touch ./abcdefghijklmnopqrstuvwxyz
+touch: cannot touch './abcdefghijklmnopqrstuvwxyz': No such file or directory
+etu1@ubuntu:/tmp/glo$ ls -lai
+total 7
+     1 drwxrwx---  6 root root  112 Dec 31  1969 .
+393221 drwxrwxrwt 10 root root 4096 Apr 15 20:01 ..
+     4 drwxrwx---  2 root root   48 Dec 31  1969 Bonjour
+     7 -rwxrwx---  1 root root   29 Dec 31  1969 b.txt
+     2 drwxrwx---  3 root root   96 Dec 31  1969 doc
+    11 drwxrwx---  3 root root   64 Dec 31  1969 movedDir
+     3 drwxrwx---  2 root root   32 Dec 31  1969 rep
+etu1@ubuntu:/tmp/glo$ touch ./abcdefghijklmn
+touch: cannot touch './abcdefghijklmn': No such file or directory
+etu1@ubuntu:/tmp/glo$ ls -lai
+total 7
+     1 drwxrwx---  6 root root  112 Dec 31  1969 .
+393221 drwxrwxrwt 10 root root 4096 Apr 15 20:01 ..
+     4 drwxrwx---  2 root root   48 Dec 31  1969 Bonjour
+     7 -rwxrwx---  1 root root   29 Dec 31  1969 b.txt
+     2 drwxrwx---  3 root root   96 Dec 31  1969 doc
+    11 drwxrwx---  3 root root   64 Dec 31  1969 movedDir
+     3 drwxrwx---  2 root root   32 Dec 31  1969 rep
+etu1@ubuntu:/tmp/glo$ touch ./abcdefghijklm
+touch: setting times of './abcdefghijklm': Function not implemented
+etu1@ubuntu:/tmp/glo$ ls -lai
+total 7
+     1 drwxrwx---  6 root root  128 Dec 31  1969 .
+393221 drwxrwxrwt 10 root root 4096 Apr 15 20:01 ..
+    19 -rwxrwx---  1 root root    0 Dec 31  1969 abcdefghijklm
+     4 drwxrwx---  2 root root   48 Dec 31  1969 Bonjour
+     7 -rwxrwx---  1 root root   29 Dec 31  1969 b.txt
+     2 drwxrwx---  3 root root   96 Dec 31  1969 doc
+    11 drwxrwx---  3 root root   64 Dec 31  1969 movedDir
+     3 drwxrwx---  2 root root   32 Dec 31  1969 rep
+etu1@ubuntu:/tmp/glo$ rm ./abcdefghijklm
+etu1@ubuntu:/tmp/glo$ ls -lai
+total 7
+     1 drwxrwx---  6 root root  112 Dec 31  1969 .
+393221 drwxrwxrwt 10 root root 4096 Apr 15 20:01 ..
+     4 drwxrwx---  2 root root   48 Dec 31  1969 Bonjour
+     7 -rwxrwx---  1 root root   29 Dec 31  1969 b.txt
+     2 drwxrwx---  3 root root   96 Dec 31  1969 doc
+    11 drwxrwx---  3 root root   64 Dec 31  1969 movedDir
+     3 drwxrwx---  2 root root   32 Dec 31  1969 rep
+etu1@ubuntu:/tmp/glo$ mkdir ./abcdefghijklmn
+mkdir: cannot create directory ‘./abcdefghijklmn’: No such file or directory
+etu1@ubuntu:/tmp/glo$ ls -lai
+total 7
+     1 drwxrwx---  6 root root  112 Dec 31  1969 .
+393221 drwxrwxrwt 10 root root 4096 Apr 15 20:01 ..
+     4 drwxrwx---  2 root root   48 Dec 31  1969 Bonjour
+     7 -rwxrwx---  1 root root   29 Dec 31  1969 b.txt
+     2 drwxrwx---  3 root root   96 Dec 31  1969 doc
+    11 drwxrwx---  3 root root   64 Dec 31  1969 movedDir
+     3 drwxrwx---  2 root root   32 Dec 31  1969 rep
+etu1@ubuntu:/tmp/glo$ mkdir ./abcdefghijklm
+etu1@ubuntu:/tmp/glo$ ls -lai
+total 8
+     1 drwxrwx---  7 root root  128 Dec 31  1969 .
+393221 drwxrwxrwt 10 root root 4096 Apr 15 20:01 ..
+    20 drwxrwx---  2 root root   32 Dec 31  1969 abcdefghijklm
+     4 drwxrwx---  2 root root   48 Dec 31  1969 Bonjour
+     7 -rwxrwx---  1 root root   29 Dec 31  1969 b.txt
+     2 drwxrwx---  3 root root   96 Dec 31  1969 doc
+    11 drwxrwx---  3 root root   64 Dec 31  1969 movedDir
+     3 drwxrwx---  2 root root   32 Dec 31  1969 rep
